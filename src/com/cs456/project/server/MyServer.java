@@ -8,9 +8,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 
 import org.apache.log4j.Logger;
 
@@ -112,6 +116,15 @@ public class MyServer extends BaseClass {
 					continue;
 				}
 				break;
+			case REMOTE_FILE_DOWNLOAD:
+				boolean remoteSuccess = remoteFileDownload((RemoteFileDownloadRequest)request);
+				
+				if(!remoteSuccess) {
+					logger.error("Failed to remotely download the file");
+					closeClientConnection();
+					continue;
+				}
+				break;
 			}
 		}
 	}
@@ -189,6 +202,18 @@ public class MyServer extends BaseClass {
 			logger.info("The client <" + clientSocket.getInetAddress() + "> has requested to delete file: " + filename);
 			
 			request = new DeleteRequest(filename);
+		}
+		else if (line != null && line.startsWith(REMOTE_DOWNLOAD_REQUEST)) {
+			String stringArguments = line.substring(REMOTE_DOWNLOAD_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			String url = arguments[0];
+			String serverLocation = arguments[1];
+			
+			logger.info("The client <" + clientSocket.getInetAddress() + "> has requested to remotely download the file: " + url +
+					" and store it here: " + serverLocation);
+			
+			request = new RemoteFileDownloadRequest(url, serverLocation);
 		}
 		else {
 			logger.info("The client <" + clientSocket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -344,6 +369,37 @@ public class MyServer extends BaseClass {
 
 		pw.write(UPLOAD_FINISHED + "\n");
 		pw.flush();
+		
+		return true;
+	}
+	
+	private boolean remoteFileDownload(RemoteFileDownloadRequest request) {
+		File serverFile = new File(request.getServerLocation());
+		
+		if(serverFile.exists()) {
+			logger.error("Unable to download file as it already exists < " + request.getServerLocation() + ">");
+			
+			pw.write(REMOTE_DOWNLOAD_DECLINE + "\n");
+			pw.flush();
+			
+			return false;
+		}
+		
+		pw.write(REMOTE_DOWNLOAD_ACCEPT + "\n");
+		pw.flush();
+		
+		try {
+			URL url = new URL(request.getUrl());
+		    ReadableByteChannel rbc = Channels.newChannel(url.openStream());
+		    FileOutputStream fos = new FileOutputStream(request.getServerLocation());
+		    fos.getChannel().transferFrom(rbc, 0, 1 << 24);
+		} catch (MalformedURLException e) {
+			logger.error("Bad URL: " + request.getUrl(), e);
+			return false;
+		} catch (IOException e) {
+			logger.error("An error has occurred while downloading the file", e);
+			return false;
+		}
 		
 		return true;
 	}

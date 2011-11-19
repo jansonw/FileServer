@@ -18,6 +18,9 @@ public abstract class BaseClass {
 	protected final String DELETE_REQUEST = "DELETE_REQUEST";
 	protected final String DELETE_SUCCESS = "DELETE_SUCCESS";
 	protected final String DELETE_FAIL = "DELETE_FAIL";
+	protected final String REMOTE_DOWNLOAD_REQUEST = "REMOTE_DOWNLOAD_REQUEST";
+	protected final String REMOTE_DOWNLOAD_ACCEPT = "REMOTE_DOWNLOAD_ACCEPT";
+	protected final String REMOTE_DOWNLOAD_DECLINE = "REMOTE_DOWNLOAD_DECLINE";
 	
 	public String readLine(Socket socket) throws IOException {
 		String line = new String();

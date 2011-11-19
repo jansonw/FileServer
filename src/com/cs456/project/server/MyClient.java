@@ -136,6 +136,36 @@ public class MyClient extends BaseClass {
 		}
 	}
 	
+	private void requestRemoteFileDownload(String url, String serverLocation) {
+		try {
+			initiateConnection();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			return;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			boolean success = remoteFileDownload(url, serverLocation);
+			
+			if(!success) {
+				System.err.println("The remote file download of: " + url + " was not successful");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			closeConnection();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+	
 	private boolean downloadFile(String filename) throws IOException {
 		System.out.println("C - Got Greeting response.. requesting download");
 		
@@ -278,7 +308,7 @@ public class MyClient extends BaseClass {
 	private boolean deleteFile(String filename) throws IOException {
 		System.out.println("C - Got Greeting response... requesting to delete");
 		
-		pw.write(DELETE_REQUEST + " " + "C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3" + "\n");
+		pw.write(DELETE_REQUEST + " " + filename + "\n");
         pw.flush();
         
         String line = readLine(mySocket);
@@ -298,11 +328,35 @@ public class MyClient extends BaseClass {
 		return true;
 	}
 	
+	private boolean remoteFileDownload(String url, String serverLocation) throws IOException {
+		System.out.println("C - Got Greeting response... requesting to do a remote file download");
+		
+		pw.write(REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation +  "\n");
+        pw.flush();
+        
+        String line = readLine(mySocket);
+        
+        if(REMOTE_DOWNLOAD_ACCEPT.equals(line)) {
+        	System.out.println("The remote file download was accepted");
+        }
+        else if(REMOTE_DOWNLOAD_DECLINE.equals(line)) {
+        	System.err.println("The remote file download was rejected");
+        	return false;
+        }
+        else {
+        	System.err.println("The server did not return REMOTE_DOWNLOAD_ACCEPT or REMOTE_DOWNLOAD_DECLINE...it returned: " + line);
+        	return false;
+        }		
+		
+		return true;
+	}
+	
 	public static void main(String[] args) {
 		MyClient mc = new MyClient();
 		mc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
 		mc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
 		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
+		mc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe");
 	}
 
 }
