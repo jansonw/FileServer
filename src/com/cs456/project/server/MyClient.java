@@ -10,12 +10,12 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-public class MyClient extends BaseClass {
+public class MyClient {
 	private Socket mySocket = null;	
 	private PrintWriter pw = null;
 		
 	private void initiateConnection() throws UnknownHostException, IOException {
-		mySocket = new Socket(hostname, port);
+		mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
 	
 		// Create a PrintWriter to use for the output stream
 		pw = new PrintWriter(mySocket.getOutputStream());
@@ -23,7 +23,7 @@ public class MyClient extends BaseClass {
 					
 		System.out.println("C - Sending Greeting");
 		
-		pw.write(GREETING + "\n");
+		pw.write(ConnectionSettings.GREETING + "\n");
 		pw.flush();
 		
 		String line = null;
@@ -32,13 +32,13 @@ public class MyClient extends BaseClass {
 		
 		line = readLine(mySocket);
 		
-		if(!GREETING.equals(line)) {
+		if(!ConnectionSettings.GREETING.equals(line)) {
 			System.err.println("No Greeting returned: " + line);
 		}
 	}
 	
 	private void closeConnection() throws IOException {
-		pw.write(GOODBYE + "\n");
+		pw.write(ConnectionSettings.GOODBYE + "\n");
 		pw.flush();
 		
 		System.out.println("C - Sending Goodbye");
@@ -46,7 +46,7 @@ public class MyClient extends BaseClass {
 		mySocket.close();
 	}
 	
-	private void requestFileDownload(String filename) {
+	public void requestFileDownload(String filename) {
 		try {
 			initiateConnection();
 		} catch (UnknownHostException e) {
@@ -76,7 +76,7 @@ public class MyClient extends BaseClass {
 		}
 	}
 	
-	private void requestFileUpload(String filename) {
+	public void requestFileUpload(String filename) {
 		try {
 			initiateConnection();
 		} catch (UnknownHostException e) {
@@ -106,7 +106,7 @@ public class MyClient extends BaseClass {
 		}
 	}
 	
-	private void requestFileDeletion(String filename) {
+	public void requestFileDeletion(String filename) {
 		try {
 			initiateConnection();
 		} catch (UnknownHostException e) {
@@ -136,7 +136,7 @@ public class MyClient extends BaseClass {
 		}
 	}
 	
-	private void requestRemoteFileDownload(String url, String serverLocation) {
+	public void requestRemoteFileDownload(String url, String serverLocation) {
 		try {
 			initiateConnection();
 		} catch (UnknownHostException e) {
@@ -179,18 +179,18 @@ public class MyClient extends BaseClass {
 		
 		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
 		
-		pw.write(DOWNLOAD_REQUEST + " " + filename + " " + partFileLength + "\n");
+		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + filename + " " + partFileLength + "\n");
 		pw.flush();
 		
 		String line = readLine(mySocket);
 		
-		if(line == null || !line.startsWith(DOWNLOAD_OK)) {
+		if(line == null || !line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
 			System.err.println("Unable to download file: " + line);
 		}
 		
 		System.out.println("C - Got download response");
 		
-		long fileLength = Long.parseLong(line.substring(DOWNLOAD_OK.length()).trim());
+		long fileLength = Long.parseLong(line.substring(ConnectionSettings.DOWNLOAD_OK.length()).trim());
 			
 		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength!=0);
 		
@@ -228,7 +228,7 @@ public class MyClient extends BaseClass {
 			return false;
 		}
 		
-		pw.write(DOWNLOAD_FINISHED + "\n");
+		pw.write(ConnectionSettings.DOWNLOAD_FINISHED + "\n");
 		pw.flush();
 		
 		return true;
@@ -242,19 +242,19 @@ public class MyClient extends BaseClass {
 
         fis = new FileInputStream(uploadFile);
         
-        pw.write(UPLOAD_REQUEST + " " + 
+        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + 
         		"C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3" + " " 
         		+ uploadFile.length() +"\n");
         pw.flush();
         
         String line = readLine(mySocket);
         
-        if(line == null || !line.startsWith(UPLOAD_OK)) {
+        if(line == null || !line.startsWith(ConnectionSettings.UPLOAD_OK)) {
         	System.err.println("Did not get the upload ok from server: " + line);
         	return false;
         }
         
-        String stringArugments = line.substring(UPLOAD_OK.length()).trim();
+        String stringArugments = line.substring(ConnectionSettings.UPLOAD_OK.length()).trim();
         String[] arguments = stringArugments.split(" ");
         
         long startPosition = Long.parseLong(arguments[0]);
@@ -297,7 +297,7 @@ public class MyClient extends BaseClass {
 		
 		line = readLine(mySocket);
 		
-		if(!UPLOAD_FINISHED.equals(line)) {
+		if(!ConnectionSettings.UPLOAD_FINISHED.equals(line)) {
 			System.err.println("Did not receive download finished: " + line);
 			return false;
 		}
@@ -308,15 +308,15 @@ public class MyClient extends BaseClass {
 	private boolean deleteFile(String filename) throws IOException {
 		System.out.println("C - Got Greeting response... requesting to delete");
 		
-		pw.write(DELETE_REQUEST + " " + filename + "\n");
+		pw.write(ConnectionSettings.DELETE_REQUEST + " " + filename + "\n");
         pw.flush();
         
         String line = readLine(mySocket);
         
-        if(DELETE_SUCCESS.equals(line)) {
+        if(ConnectionSettings.DELETE_SUCCESS.equals(line)) {
         	System.out.println("The deletion was successful");
         }
-        else if(DELETE_FAIL.equals(line)) {
+        else if(ConnectionSettings.DELETE_FAIL.equals(line)) {
         	System.err.println("The deletion has failed");
         	return false;
         }
@@ -331,15 +331,15 @@ public class MyClient extends BaseClass {
 	private boolean remoteFileDownload(String url, String serverLocation) throws IOException {
 		System.out.println("C - Got Greeting response... requesting to do a remote file download");
 		
-		pw.write(REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation +  "\n");
+		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation +  "\n");
         pw.flush();
         
         String line = readLine(mySocket);
         
-        if(REMOTE_DOWNLOAD_ACCEPT.equals(line)) {
+        if(ConnectionSettings.REMOTE_DOWNLOAD_ACCEPT.equals(line)) {
         	System.out.println("The remote file download was accepted");
         }
-        else if(REMOTE_DOWNLOAD_DECLINE.equals(line)) {
+        else if(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE.equals(line)) {
         	System.err.println("The remote file download was rejected");
         	return false;
         }
@@ -351,12 +351,27 @@ public class MyClient extends BaseClass {
 		return true;
 	}
 	
+	private String readLine(Socket socket) throws IOException {
+		String line = new String();
+		int c;
+
+		while ((c = socket.getInputStream().read()) != '\n') {
+			if(c == -1) {
+				throw new IOException("The socket closed before being able to read the end of the line");
+			}
+			
+			line += (char) c;
+		}
+
+		return line.trim();
+	}
+	
 	public static void main(String[] args) {
 		MyClient mc = new MyClient();
 		mc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
 		mc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
-		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
-		mc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe");
+//		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
+//		mc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe");
 	}
 
 }
