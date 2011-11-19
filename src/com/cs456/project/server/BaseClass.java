@@ -3,38 +3,31 @@ package com.cs456.project.server;
 import java.io.IOException;
 import java.net.Socket;
 
-public class BaseClass {
+public abstract class BaseClass {
 	protected final int port = 62009;
 	protected final String hostname = "localhost";
 	
 	protected final String GREETING = "HELLO";
+	protected final String GOODBYE = "GOODBYE";
 	protected final String UPLOAD_REQUEST = "UPLOAD";
 	protected final String UPLOAD_OK = "UPLOAD_OK";
 	protected final String UPLOAD_FINISHED = "UPLOAD_FINISHED";
 	protected final String DOWNLOAD_REQUEST = "DOWNLOAD";
 	protected final String DOWNLOAD_OK = "DOWNLOAD_OK";
 	protected final String DOWNLOAD_FINISHED = "DOWNLOAD_FINISHED";
-	protected final String GOODBYE = "GOODBYE";
-	protected final String END_OF_TRANSFER = "EOF";
 	
-	
-	public String readLine(Socket socket) {
+	public String readLine(Socket socket) throws IOException {
 		String line = new String();
 		int c;
 
-		try {
-			while ((c = socket.getInputStream().read()) != '\n') {
-				line += (char) c;
+		while ((c = socket.getInputStream().read()) != '\n') {
+			if(c == -1) {
+				throw new IOException("The socket closed before being able to read the end of the line");
 			}
-		} catch (IOException e) {
-			System.err.println("Error reading line from stream");
-			System.exit(-14);
+			
+			line += (char) c;
 		}
 
-		// We may have a trailing return
-		line = line.trim();
-
-		// System.out.println("Read Line " + line);
-		return line;
+		return line.trim();
 	}
 }
