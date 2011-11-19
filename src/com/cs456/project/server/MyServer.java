@@ -17,8 +17,6 @@ import org.apache.log4j.Logger;
 public class MyServer extends BaseClass {
 	private static Logger logger = Logger.getLogger(MyServer.class);
 	
-	
-
 	ServerSocket mySocket = null;
 	Socket clientSocket = null;
 	OutputStream out = null;
@@ -65,9 +63,9 @@ public class MyServer extends BaseClass {
 			switch(request.getRequestType()) {
 			case DOWNLOAD:
 				try {
-					boolean sendSuccessful = sendFile((DownloadRequest)request);
+					boolean success = sendFile((DownloadRequest)request);
 					
-					if(!sendSuccessful) {
+					if(!success) {
 						logger.error("Sending the requested file to the client was not successful");
 						closeClientConnection();
 						continue;
@@ -83,11 +81,10 @@ public class MyServer extends BaseClass {
 				}
 				break;
 			case UPLOAD:
-				boolean receivedFullFile;
 				try {
-					receivedFullFile = receiveFile((UploadRequest)request);
+					boolean success = receiveFile((UploadRequest)request);
 					
-					if(!receivedFullFile) {
+					if(!success) {
 						logger.error("Did not receive the entire file being uploaded.  The client must reconnect and send the rest of it.");
 						closeClientConnection();
 						continue;
@@ -106,6 +103,15 @@ public class MyServer extends BaseClass {
 			case GOODBYE:
 				closeClientConnection();
 				continue;
+			case DELETE:
+				boolean success = deleteFile((DeleteRequest)request);
+				
+				if(!success) {
+					logger.error("Failed to delete the file");
+					closeClientConnection();
+					continue;
+				}
+				break;
 			}
 		}
 	}
@@ -174,12 +180,49 @@ public class MyServer extends BaseClass {
 			logger.info("The client <" + clientSocket.getInetAddress() + "> has sent the goodbye message");
 			request = new CloseRequest();
 		}
+		else if (line != null && line.startsWith(DELETE_REQUEST)) {
+			String stringArguments = line.substring(DELETE_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			String filename = arguments[0];
+			
+			logger.info("The client <" + clientSocket.getInetAddress() + "> has requested to delete file: " + filename);
+			
+			request = new DeleteRequest(filename);
+		}
 		else {
 			logger.info("The client <" + clientSocket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
 			throw new InvalidRequestException("An invalid client request occurred", line);
 		}
 		
 		return request;
+	}
+	
+	private boolean deleteFile(DeleteRequest request) {
+		File fileToDelete = new File(request.getFileName());
+		
+		if(!fileToDelete.exists()) {
+			logger.error("Unable to delete the file < " + request.getFileName() + "> as the file does not exist");
+			
+			pw.write(DELETE_FAIL + "\n");
+			pw.flush();
+			
+			return false;
+		}
+				
+		if (!fileToDelete.delete()) {
+			logger.error("Unable to delete the file < " + request.getFileName() + ">");
+			
+			pw.write(DELETE_FAIL + "\n");
+			pw.flush();
+			
+		    return false;
+		}
+		
+		pw.write(DELETE_SUCCESS + "\n");
+		pw.flush();
+		
+		return true;
 	}
 	
 	private boolean sendFile(DownloadRequest request) throws FileNotFoundException, IOException {

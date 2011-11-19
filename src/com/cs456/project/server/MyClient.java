@@ -91,7 +91,37 @@ public class MyClient extends BaseClass {
 			boolean uploadSuccessful = uploadFile(filename);
 			
 			if(!uploadSuccessful) {
-				System.err.println("The download for file: " + filename + " was not successful");
+				System.err.println("The upload for file: " + filename + " was not successful");
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			closeConnection();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+	}
+	
+	private void requestFileDeletion(String filename) {
+		try {
+			initiateConnection();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			return;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			boolean deleteSuccessful = deleteFile(filename);
+			
+			if(!deleteSuccessful) {
+				System.err.println("The deletion of file: " + filename + " was not successful");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -176,7 +206,7 @@ public class MyClient extends BaseClass {
 	
 	private boolean uploadFile(String filename) throws IOException {
 		File uploadFile = new File(filename);
-		System.out.println("C - Got Gretting response... requesting to Upload");
+		System.out.println("C - Got Greeting response... requesting to Upload");
 
         FileInputStream fis = null;
 
@@ -245,10 +275,34 @@ public class MyClient extends BaseClass {
 		return true;
 	}
 	
+	private boolean deleteFile(String filename) throws IOException {
+		System.out.println("C - Got Greeting response... requesting to delete");
+		
+		pw.write(DELETE_REQUEST + " " + "C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3" + "\n");
+        pw.flush();
+        
+        String line = readLine(mySocket);
+        
+        if(DELETE_SUCCESS.equals(line)) {
+        	System.out.println("The deletion was successful");
+        }
+        else if(DELETE_FAIL.equals(line)) {
+        	System.err.println("The deletion has failed");
+        	return false;
+        }
+        else {
+        	System.err.println("The server did not return DELETE_SUCCESS or DELETE_FAIL...it returned: " + line);
+        	return false;
+        }
+		
+		return true;
+	}
+	
 	public static void main(String[] args) {
 		MyClient mc = new MyClient();
 		mc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
 		mc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
+		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
 	}
 
 }
