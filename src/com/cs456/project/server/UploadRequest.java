@@ -4,7 +4,9 @@ public class UploadRequest extends Request {
 	private String nameOnServer = null;
 	private long fileSize = -1;
 	
-	public UploadRequest(String nameOnServer, long fileSize) {
+	public UploadRequest(String nameOnServer, long fileSize, Credentials credentials) {
+		super(credentials);
+		
 		this.request = RequestType.UPLOAD;
 		this.nameOnServer = nameOnServer;
 		this.fileSize = fileSize;

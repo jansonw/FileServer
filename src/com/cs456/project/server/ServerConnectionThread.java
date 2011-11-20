@@ -33,9 +33,11 @@ public class ServerConnectionThread extends Thread {
 	}
 
 	@Override
-	public void run() {		
+	public void run() {
+		Credentials credentials = null;
+		
 		try {
-			initiateClientConnection();
+			credentials = initiateClientConnection();
 		} catch (IOException e) {
 			logger.error("An error occurred while initiating connection with the client", e);
 			closeClientConnection();
@@ -53,7 +55,7 @@ public class ServerConnectionThread extends Thread {
 		
 		Request request = null;
 		try {
-			request = getClientRequest();
+			request = getClientRequest(credentials);
 		} catch (InvalidRequestException e) {
 			logger.error("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + e.getInvalidRequest() + ">");
 			closeClientConnection();
@@ -131,7 +133,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	
-	private void initiateClientConnection() throws IOException, SQLException, BadAuthenticationException {
+	private Credentials initiateClientConnection() throws IOException, SQLException, BadAuthenticationException {
 		out = socket.getOutputStream();
 		pw = new PrintWriter(out);
 
@@ -203,9 +205,11 @@ public class ServerConnectionThread extends Thread {
 
 		pw.write(ConnectionSettings.GREETING + "\n");
 		pw.flush();
+		
+		return new Credentials(username, password);
 	}
 	
-	private Request getClientRequest() throws InvalidRequestException, IOException {
+	private Request getClientRequest(Credentials credentials) throws InvalidRequestException, IOException {
 		Request request = null;
 		
 		logger.info("Waiting on client <" + socket.getInetAddress() + "> to send a request");
@@ -222,7 +226,7 @@ public class ServerConnectionThread extends Thread {
 			String nameOnServer = arguments[0].trim();
 			long fileSize = Long.parseLong(arguments[1].trim());
 			
-			request = new UploadRequest(nameOnServer, fileSize);			
+			request = new UploadRequest(nameOnServer, fileSize, credentials);			
 		}
 		// DOWNLOAD
 		else if (line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REQUEST)) {
@@ -235,11 +239,11 @@ public class ServerConnectionThread extends Thread {
 			String downloadFilename = arguments[0].trim();
 			long startPosition = Long.parseLong(arguments[1].trim());
 			
-			request = new DownloadRequest(downloadFilename, startPosition);			
+			request = new DownloadRequest(downloadFilename, startPosition, credentials);			
 		} 
 		else if (ConnectionSettings.GOODBYE.equals(line)) {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent the goodbye message");
-			request = new CloseRequest();
+			request = new CloseRequest(credentials);
 		}
 		else if (line != null && line.startsWith(ConnectionSettings.DELETE_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.DELETE_REQUEST.length()).trim();
@@ -249,7 +253,7 @@ public class ServerConnectionThread extends Thread {
 			
 			logger.info("The client <" + socket.getInetAddress() + "> has requested to delete file: " + filename);
 			
-			request = new DeleteRequest(filename);
+			request = new DeleteRequest(filename, credentials);
 		}
 		else if (line != null && line.startsWith(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST.length()).trim();
@@ -261,7 +265,7 @@ public class ServerConnectionThread extends Thread {
 			logger.info("The client <" + socket.getInetAddress() + "> has requested to remotely download the file: " + url +
 					" and store it here: " + serverLocation);
 			
-			request = new RemoteFileDownloadRequest(url, serverLocation);
+			request = new RemoteFileDownloadRequest(url, serverLocation, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");

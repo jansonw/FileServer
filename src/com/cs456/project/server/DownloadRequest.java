@@ -4,7 +4,9 @@ public class DownloadRequest extends Request {
 	private String fileName = null;
 	private long startPosition = 0;
 	
-	public DownloadRequest(String fileName, long startPosition) {
+	public DownloadRequest(String fileName, long startPosition, Credentials credentials) {
+		super(credentials);
+		
 		this.request = RequestType.DOWNLOAD;
 		this.fileName = fileName;
 		this.startPosition = startPosition;
