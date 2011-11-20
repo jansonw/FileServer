@@ -14,7 +14,7 @@ public class MyClient {
 	private Socket mySocket = null;	
 	private PrintWriter pw = null;
 		
-	private void initiateConnection() throws UnknownHostException, IOException {
+	private void initiateConnection(String username, String password) throws UnknownHostException, IOException {
 		mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
 	
 		// Create a PrintWriter to use for the output stream
@@ -23,17 +23,24 @@ public class MyClient {
 					
 		System.out.println("C - Sending Greeting");
 		
-		pw.write(ConnectionSettings.GREETING + "\n");
+		pw.write(ConnectionSettings.GREETING + " " + username + " " + password + "\n");
 		pw.flush();
-		
-		String line = null;
-		
+				
 		System.out.println("C - Waiting for Greeting response");
 		
-		line = readLine(mySocket);
+		String line = readLine(mySocket);
 		
-		if(!ConnectionSettings.GREETING.equals(line)) {
-			System.err.println("No Greeting returned: " + line);
+		if(ConnectionSettings.GREETING.equals(line)) {
+			System.out.println("I was authenticated!");
+		}
+		else if(ConnectionSettings.BAD_AUTHENTICATION.equals(line)) {
+			System.err.println("I was not authenticated using: username=" + username + " password=" + password);
+		}
+		else if(ConnectionSettings.LOCKED_OUT.equals(line)) {
+			System.err.println("I am locked out using: username=" + username + " password=" + password);
+		}
+		else {
+			System.err.println("The server returned a weird response: " + line);
 		}
 	}
 	
@@ -46,9 +53,9 @@ public class MyClient {
 		mySocket.close();
 	}
 	
-	public void requestFileDownload(String filename) {
+	public void requestFileDownload(String filename, String username, String password) {
 		try {
-			initiateConnection();
+			initiateConnection(username, password);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -76,9 +83,9 @@ public class MyClient {
 		}
 	}
 	
-	public void requestFileUpload(String filename) {
+	public void requestFileUpload(String filename, String username, String password) {
 		try {
-			initiateConnection();
+			initiateConnection(username, password);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -106,9 +113,9 @@ public class MyClient {
 		}
 	}
 	
-	public void requestFileDeletion(String filename) {
+	public void requestFileDeletion(String filename, String username, String password) {
 		try {
-			initiateConnection();
+			initiateConnection(username, password);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -136,9 +143,9 @@ public class MyClient {
 		}
 	}
 	
-	public void requestRemoteFileDownload(String url, String serverLocation) {
+	public void requestRemoteFileDownload(String url, String serverLocation, String username, String password) {
 		try {
-			initiateConnection();
+			initiateConnection(username, password);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -368,10 +375,10 @@ public class MyClient {
 	
 	public static void main(String[] args) {
 		MyClient mc = new MyClient();
-		mc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
-		mc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
-//		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
-//		mc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe");
+		mc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "janson", "abc123");
+//		mc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "janson", "abc123");
+//		mc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3", "janson", "abc123");
+//		mc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe", "janson", "abc123");
 	}
 
 }

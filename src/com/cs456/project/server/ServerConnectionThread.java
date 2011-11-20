@@ -13,6 +13,8 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import org.apache.log4j.Logger;
 
@@ -23,7 +25,10 @@ public class ServerConnectionThread extends Thread {
 	OutputStream out = null;
 	PrintWriter pw = null;
 	
+	DatabaseManager dbm = null;
+	
 	ServerConnectionThread(Socket socket) {
+		this.dbm = DatabaseManager.getInstance();
 		this.socket = socket;
 	}
 
@@ -33,6 +38,15 @@ public class ServerConnectionThread extends Thread {
 			initiateClientConnection();
 		} catch (IOException e) {
 			logger.error("An error occurred while initiating connection with the client", e);
+			closeClientConnection();
+			return;
+		} catch (SQLException e) {
+			logger.error("An error occurred while querying the database for the requested username and password", e);
+			closeClientConnection();
+			return;
+		} catch (BadAuthenticationException e) {
+			logger.error("The client was not authenticated and thus is being kicked out.  The attempted username and password were:" +
+					" username=" + e.getUsername() + " password=" + e.getPassword());
 			closeClientConnection();
 			return;
 		}
@@ -117,7 +131,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	
-	private void initiateClientConnection() throws IOException {
+	private void initiateClientConnection() throws IOException, SQLException, BadAuthenticationException {
 		out = socket.getOutputStream();
 		pw = new PrintWriter(out);
 
@@ -126,11 +140,63 @@ public class ServerConnectionThread extends Thread {
 		logger.info("Waiting for greeting from client");
 
 		line = readLine(socket);
-		if (!ConnectionSettings.GREETING.equals(line)) {
+		if (line == null || !line.startsWith(ConnectionSettings.GREETING)) {
 			logger.info("The client did not properly do the handshake, " +
 					"and thus the client <" + socket.getInetAddress() + "> is being rejected");
+		}
+		
+		String stringArguments = line.substring(ConnectionSettings.GREETING.length()).trim();
+		String[] arguments = stringArguments.split(" ");
+		
+		String username = arguments[0];
+		String password = arguments[1];
+		
+		String query = "Select * from USERS where username = '" + username + "'";
+		ResultSet rs = dbm.executeQuery(query);
+		
+		if(!rs.next()) {
+			logger.error("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the username does not exist:" +
+					" username=" + username + " password=" + password);
 			
+			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
+			pw.flush();
 			
+			throw new BadAuthenticationException("The username combination was not found in the database", username, password, false);
+		}
+		
+		if(!password.equals(rs.getString("password"))) {
+			logger.error("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the password is incorrect:" +
+					" username=" + username + " password=" + password);
+			
+			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
+			pw.flush();
+			
+			int numFail = rs.getInt("num_fail") + 1;
+			
+			if(numFail == 3) {
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where username='" + username + "'");
+			}
+			else {
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where username='" + username + "'");
+			}
+		    			
+			throw new BadAuthenticationException("The username/password combination was not found in the database", username, password, false);
+		}
+		
+		
+		
+		
+		boolean isLocked = "Y".equals(rs.getString("is_locked"));
+		
+		if(isLocked) {
+			pw.write(ConnectionSettings.LOCKED_OUT + "\n");
+			pw.flush();
+			
+			throw new BadAuthenticationException("The user is locked out", username, password, true);
+		}	
+		
+		if(rs.getInt("num_fail") != 0) {
+			dbm.executeQuery("UPDATE USERS set num_fail='0' where username='" + username + "'");
 		}
 
 		logger.info("The client <" + socket.getInetAddress() + "> has sent the appropriate greeting...returning the favour");

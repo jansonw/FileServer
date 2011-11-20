@@ -14,6 +14,13 @@ public class MyServer {
 	Socket clientSocket = null;
 		
 	public void start() {
+		DatabaseManager dbm = DatabaseManager.getInstance();
+		if(dbm == null) {
+			logger.error("An error occurred while trying to connect to the database.  Stopping server!");
+			return;
+		}
+		
+		
 		try {
 			mySocket = new ServerSocket(ConnectionSettings.port);
 			mySocket.setReuseAddress(true);
