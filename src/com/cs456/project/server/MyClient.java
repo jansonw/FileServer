@@ -14,7 +14,7 @@ public class MyClient {
 	private Socket mySocket = null;	
 	private PrintWriter pw = null;
 		
-	private void initiateConnection(String username, String password) throws UnknownHostException, IOException {
+	private boolean initiateConnection(String username, String password) throws UnknownHostException, IOException {
 		mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
 	
 		// Create a PrintWriter to use for the output stream
@@ -35,13 +35,18 @@ public class MyClient {
 		}
 		else if(ConnectionSettings.BAD_AUTHENTICATION.equals(line)) {
 			System.err.println("I was not authenticated using: username=" + username + " password=" + password);
+			return false;
 		}
 		else if(ConnectionSettings.LOCKED_OUT.equals(line)) {
 			System.err.println("I am locked out using: username=" + username + " password=" + password);
+			return false;
 		}
 		else {
 			System.err.println("The server returned a weird response: " + line);
+			return false;
 		}
+		
+		return true;
 	}
 	
 	private void closeConnection() throws IOException {
@@ -55,7 +60,11 @@ public class MyClient {
 	
 	public void requestFileDownload(String filename, String username, String password) {
 		try {
-			initiateConnection(username, password);
+			boolean success = initiateConnection(username, password);
+			if(!success) {
+				System.err.println("The client was unable to establish a connection with the server");
+				return;
+			}
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -85,7 +94,11 @@ public class MyClient {
 	
 	public void requestFileUpload(String filename, String username, String password) {
 		try {
-			initiateConnection(username, password);
+			boolean success = initiateConnection(username, password);
+			if(!success) {
+				System.err.println("The client was unable to establish a connection with the server");
+				return;
+			}
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -115,7 +128,11 @@ public class MyClient {
 	
 	public void requestFileDeletion(String filename, String username, String password) {
 		try {
-			initiateConnection(username, password);
+			boolean success = initiateConnection(username, password);
+			if(!success) {
+				System.err.println("The client was unable to establish a connection with the server");
+				return;
+			}
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
@@ -145,7 +162,11 @@ public class MyClient {
 	
 	public void requestRemoteFileDownload(String url, String serverLocation, String username, String password) {
 		try {
-			initiateConnection(username, password);
+			boolean success = initiateConnection(username, password);
+			if(!success) {
+				System.err.println("The client was unable to establish a connection with the server");
+				return;
+			}
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 			return;
