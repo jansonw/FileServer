@@ -1,4 +1,4 @@
-package com.cs456.project.server;
+package com.cs456.project.server.protocol;
 
 public class Credentials {
 	private String username = null;

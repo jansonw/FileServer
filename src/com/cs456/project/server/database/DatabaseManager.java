@@ -1,4 +1,4 @@
-package com.cs456.project.server;
+package com.cs456.project.server.database;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

@@ -1,4 +1,4 @@
-package com.cs456.project.server;
+package com.cs456.project.client;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -9,6 +9,8 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+
+import com.cs456.project.server.protocol.ConnectionSettings;
 
 public class MyClient {
 	private Socket mySocket = null;	

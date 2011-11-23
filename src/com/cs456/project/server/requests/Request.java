@@ -1,4 +1,6 @@
-package com.cs456.project.server;
+package com.cs456.project.server.requests;
+
+import com.cs456.project.server.protocol.Credentials;
 
 public abstract class Request {
 	public static enum RequestType { DOWNLOAD, UPLOAD, GOODBYE, DELETE, REMOTE_FILE_DOWNLOAD }

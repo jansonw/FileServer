@@ -18,6 +18,18 @@ import java.sql.SQLException;
 
 import org.apache.log4j.Logger;
 
+import com.cs456.project.server.database.DatabaseManager;
+import com.cs456.project.server.exceptions.BadAuthenticationException;
+import com.cs456.project.server.exceptions.InvalidRequestException;
+import com.cs456.project.server.protocol.ConnectionSettings;
+import com.cs456.project.server.protocol.Credentials;
+import com.cs456.project.server.requests.CloseRequest;
+import com.cs456.project.server.requests.DeleteRequest;
+import com.cs456.project.server.requests.DownloadRequest;
+import com.cs456.project.server.requests.RemoteFileDownloadRequest;
+import com.cs456.project.server.requests.Request;
+import com.cs456.project.server.requests.UploadRequest;
+
 public class ServerConnectionThread extends Thread {
 	private static Logger logger = Logger.getLogger(ServerConnectionThread.class);
 	private Socket socket = null;

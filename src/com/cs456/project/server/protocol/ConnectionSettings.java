@@ -1,4 +1,4 @@
-package com.cs456.project.server;
+package com.cs456.project.server.protocol;
 
 public class ConnectionSettings {
 	public static final String GREETING = "HELLO";
