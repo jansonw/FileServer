@@ -11,13 +11,15 @@ public class MyClient {
 	public static void main(String[] args) {
 		ClientConnection cc = new ClientConnection(null);
 		try {
+			cc.setCredentials(new Credentials("janson", "abc123"));
 //			cc.requestFileDownload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
-//			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
+			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3");
 //			cc.requestFileDeletion("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "C:\\Users\\Janson\\workspace\\FileServer\\upload\\npp.5.9.6.2.Installer.exe");
-			cc.requestUserRegistration("test1", "password");
-			cc.setCredentials(new Credentials("test1", "password"));
-			cc.requestPasswordChange("password", "newPassword");
+//			cc.requestUserRegistration("test1", "password");
+//			cc.setCredentials(new Credentials("test1", "password"));
+//			cc.requestPasswordChange("password", "newPassword");
+			cc.requestFileExistance("C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3");
 		} catch (DisconnectionException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -27,6 +27,7 @@ import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.server.database.DatabaseManager;
 import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
+import com.cs456.project.server.requests.FileExistanceRequest;
 import com.cs456.project.server.requests.PasswordChangeRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
 import com.cs456.project.server.requests.Request;
@@ -156,6 +157,9 @@ public class ServerConnectionThread extends Thread {
 				closeClientConnection();
 				return;
 			}
+			break;
+		case FILE_EXISTANCE:
+			fileExistance((FileExistanceRequest)request);
 			break;
 		}
 		
@@ -318,6 +322,16 @@ public class ServerConnectionThread extends Thread {
 					" to: " + newPassword);
 			
 			request = new PasswordChangeRequest(oldPassword, newPassword, credentials);
+		}
+		else if(line != null && line.startsWith(ConnectionSettings.FILE_EXISTS_REQUEST)) {
+			String stringArguments = line.substring(ConnectionSettings.FILE_EXISTS_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			String file = arguments[0];
+			
+			logger.info("The client <" + socket.getInetAddress() + "> has ask whether the file: " + file + "exists on the server");
+			
+			request = new FileExistanceRequest(file, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -560,7 +574,6 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private boolean passwordChange(PasswordChangeRequest request) {
-		
 		try {
 			dbm.passwordChange(request.getUsername(), request.getOldPassword(), request.getNewPassword());
 		} catch (SQLException e) {
@@ -584,6 +597,23 @@ public class ServerConnectionThread extends Thread {
 		
 		return true;
 				
+	}
+	
+	private void fileExistance(FileExistanceRequest request) {
+		File file = new File(request.getFileName());
+		
+		if(file.exists()) {
+			logger.info("The server has the requested file: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.FILE_EXISTS_YES + "\n");
+		}
+		else {
+			logger.info("The server does not have the requested file: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
+		}
+		
+		pw.flush();
 	}
 	
 	private String readLine(Socket socket) throws IOException {

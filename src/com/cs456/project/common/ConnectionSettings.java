@@ -23,6 +23,9 @@ public class ConnectionSettings {
 	public static final String PASSWORD_CHANGE_REQUEST = "PASSWORD_CHANGE_REQUEST";
 	public static final String PASSWORD_CHANGE_OK = "PASSWORD_CHANGE_OK";
 	public static final String PASSWORD_CHANGE_FAILED = "PASSWORD_CHANGE_FAILED";
+	public static final String FILE_EXISTS_REQUEST = "FILE_EXISTS_REQUEST";
+	public static final String FILE_EXISTS_YES = "FILE_EXISTS_YES";
+	public static final String FILE_EXISTS_NO = "FILE_EXISTS_NO";
 
 	public static final String hostname = "localhost";
 	public static final int port = 62009;

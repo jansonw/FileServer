@@ -135,11 +135,34 @@ public class ClientConnection implements RequestInterface {
 		}
 	}
 	
+	@Override
 	public void requestPasswordChange(String oldPassword, String newPassword) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
 		try {
 			openConnection();
 			initiateRequestConnection();
 			changePassword(oldPassword, newPassword);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+	}
+	
+	@Override
+	public void requestFileExistance(String serverFilePath) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		try {
+			openConnection();
+			initiateRequestConnection();
+			fileExistance(serverFilePath);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -476,8 +499,30 @@ public class ClientConnection implements RequestInterface {
         else if(ConnectionSettings.PASSWORD_CHANGE_FAILED.equals(line)) {
         	System.err.println("The password change was not successful");
         	throw new RequestExecutionException("Your password change request could not be serviced at this time.  Please try again later");
-        }
+        }		
+	}
+	
+	private void fileExistance(String serverFilePath) throws DisconnectionException, RequestExecutionException {
+		System.out.println("C - Got Greeting response... requesting file existance");
 		
+		pw.write(ConnectionSettings.FILE_EXISTS_REQUEST + " " + serverFilePath + "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your file existance request again");
+		}
+        
+        if(ConnectionSettings.FILE_EXISTS_YES.equals(line)) {
+        	System.out.println("The file exists");
+        }
+        else if(ConnectionSettings.FILE_EXISTS_NO.equals(line)) {
+        	System.err.println("The file does not exist");
+        	throw new RequestExecutionException("The file you are looking for does not exist.");
+        }
 	}
 	
 	private String readLine(Socket socket) throws IOException {
