@@ -1,28 +1,26 @@
 package com.cs456.project.server.requests;
 
-import com.cs456.project.server.protocol.Credentials;
+import com.cs456.project.common.Credentials;
 
 public abstract class Request {
 	public static enum RequestType { DOWNLOAD, UPLOAD, GOODBYE, DELETE, REMOTE_FILE_DOWNLOAD }
 	
 	protected RequestType request = null;
-	protected String username = null;
-	protected String password = null;
+	protected Credentials credentials = null;
 	
 	protected Request(Credentials credentials) {
-		this.username = username;
-		this.password = password;
+		this.credentials = credentials;
 	}
 	
 	public RequestType getRequestType() {
-		return this.request;
+		return request;
 	}
 	
 	public String getUsername() {
-		return this.username;
+		return (credentials == null) ? null : credentials.getUsername();
 	}
 	
 	public String getPassword() {
-		return this.password;
+		return (credentials == null) ? null : credentials.getPassword();
 	}
 }

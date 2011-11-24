@@ -1,0 +1,382 @@
+package com.cs456.project.client;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+import com.cs456.project.common.ConnectionSettings;
+import com.cs456.project.common.Credentials;
+import com.cs456.project.exceptions.AuthenticationException;
+import com.cs456.project.exceptions.DisconnectionException;
+import com.cs456.project.exceptions.RequestExecutionException;
+
+public class ClientConnection implements RequestInterface {
+	private Socket mySocket = null;	
+	private PrintWriter pw = null;
+	
+	Credentials credentials = null;
+	
+	public ClientConnection(Credentials credentials) {
+		this.credentials = credentials;
+	}
+
+	@Override
+	public void requestFileDownload(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+		try {	
+			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			downloadFile(fileLocationOnServer);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		} 
+	}
+
+	@Override
+	public void requestFileUpload(String fileLocation) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+		try {
+			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			uploadFile(fileLocation);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		} 
+	}
+
+	@Override
+	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+		try {
+			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			remoteFileDownload(urlLocation, locationOnServer);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();
+			throw e;
+		}
+	}
+
+	@Override
+	public void requestFileDeletion(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+		try {
+			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			deleteFile(fileLocationOnServer);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();
+			throw e;
+		}
+	}
+		
+	private void initiateConnection(String username, String password) throws DisconnectionException, AuthenticationException {
+		try {
+			mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
+			pw = new PrintWriter(mySocket.getOutputStream());
+		} catch (UnknownHostException e) {
+			throw new DisconnectionException("Could not find the server: " + ConnectionSettings.hostname);
+		} catch (IOException e) {
+			throw new DisconnectionException("Unable to establish a connection with the server, please try again later");
+		}
+					
+		System.out.println("C - Sending Greeting");
+		
+		pw.write(ConnectionSettings.GREETING + " " + username + " " + password + "\n");
+		pw.flush();
+				
+		System.out.println("C - Waiting for Greeting response");
+		
+		String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("A disconnect occurred while trying to establish a connection with the server, please try again later");
+		}
+		
+		if(ConnectionSettings.GREETING.equals(line)) {
+			System.out.println("I was authenticated!");
+		}
+		else if(ConnectionSettings.BAD_AUTHENTICATION.equals(line)) {
+			System.err.println("I was not authenticated using: username=" + username + " password=" + password);
+			throw new AuthenticationException("The username and/or password you provided is incorrect", username, password, false);
+		}
+		else if(ConnectionSettings.LOCKED_OUT.equals(line)) {
+			System.err.println("I am locked out using: username=" + username + " password=" + password);
+			throw new AuthenticationException("The account you are attempting to use is currently locked. " +
+					"Please contact customer support at support@filestorage.com to unlock your account", username, password, true);
+		}
+		else {
+			System.err.println("The server returned a weird response: " + line);
+		}
+	}
+	
+	private void closeConnection() {
+		System.out.println("C - Closing Connection");
+			
+		try {
+			mySocket.close();
+		} catch (IOException e) {
+			System.err.println("An error occurred while trying to close the socket");
+			e.printStackTrace();
+		}
+	}
+	
+	private void remoteFileDownload(String url, String serverLocation) throws RequestExecutionException, DisconnectionException {
+		System.out.println("C - Got Greeting response... requesting to do a remote file download");
+		
+		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation +  "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted." +
+					" Please ensure you are connected to the internet and then try your remote download request again");
+		}
+        
+        if(ConnectionSettings.REMOTE_DOWNLOAD_ACCEPT.equals(line)) {
+        	System.out.println("The remote file download was accepted");
+        }
+        else {
+        	System.err.println("The remote file download was rejected");
+        	throw new RequestExecutionException("The server has rejected your request for the remote download." +
+        			" Please ensure you have the proper privledges and then try your request again");
+        }	
+	}
+	
+	private void downloadFile(String filename) throws RequestExecutionException, DisconnectionException {
+		System.out.println("C - Got Greeting response.. requesting download");
+		
+		File destinationPart = new File("C:\\Users\\Janson\\workspace\\FileServer\\download\\file.mp3.part");
+		File destination = new File("C:\\Users\\Janson\\workspace\\FileServer\\download\\file.mp3");
+		
+		if(destination.exists()) {
+			System.err.println("Unable to download the file as the file already exists: " + destination.getPath());
+			throw new RequestExecutionException("The requested file could not be downloaded as a file with the same name" +
+					" already exists in the download directory.  The file name and location you chose was: " + destination.getPath() +
+					"\nPlease choose another file name for the requested file download");
+		}
+		
+		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
+		
+		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + filename + " " + partFileLength + "\n");
+		pw.flush();
+		
+		try {
+			String line = readLine(mySocket);
+			
+			if(line == null || !line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
+				System.err.println("Unable to download file: " + line);
+				throw new RequestExecutionException("The server has rejected your request to download the file.  Please ensure you have the " +
+						"proper privledges and then try again");
+			}
+			
+			System.out.println("C - Got download response");
+			
+			long fileLength = Long.parseLong(line.substring(ConnectionSettings.DOWNLOAD_OK.length()).trim());
+				
+			FileOutputStream fileOut;
+			try {
+				fileOut = new FileOutputStream(destinationPart, partFileLength!=0);
+			} catch (FileNotFoundException e) {
+				throw new RequestExecutionException("Unable to write to the file: " + destinationPart.getName() + 
+						"\nPlease try your request again");
+			}
+			
+			byte[] buffer = new byte[64000];
+			long totalBytesRead = partFileLength;
+			
+			InputStream inFile = mySocket.getInputStream();
+			
+			while (true) {
+				System.out.println("BYTES READ: " + totalBytesRead + "/" + fileLength);
+							
+				if(totalBytesRead == fileLength) break;
+							
+				int numBytesRead = inFile.read(buffer);
+				if(numBytesRead == -1) break;
+				
+				totalBytesRead += numBytesRead;
+							
+				fileOut.write(buffer, 0, numBytesRead);
+				fileOut.flush();
+			}
+			
+			if(totalBytesRead != fileLength) {
+				System.err.println("Did not receive the whole file, only got: " + totalBytesRead + " bytes");
+				throw new RequestExecutionException("The file you requested was not completely downloaded.  This is most likely due to" +
+						" you temporarily losing internet connectivity.  Please ensure you are connected to the internet and attempt" +
+						" to download this file again.  The download will resume where you left off");
+			}
+			
+			System.out.println("C - Got the whole file");
+			
+			fileOut.close();
+		} catch(IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your download request again.  If the download had begun, it will resume where it left off");
+		}
+		
+		if(!destinationPart.renameTo(destination)) {
+			System.err.println("Although the .part file is complete, could not rename the file to remove the .part..." +
+					"please fix the problem and run the download again, or manually remove the .part extension");
+			throw new RequestExecutionException("An error occurred while removing the \".part\" extension on the file you were downloading." +
+					" The file download has completed, so you can either manually remove this file extension, or run the download again." +
+					" If you choose the download approach, please note that the file will not be downloaded again, rather the program will" +
+					" attempt to rename the file once again for you.");
+		}
+		
+		pw.write(ConnectionSettings.DOWNLOAD_FINISHED + "\n");
+		pw.flush();
+	}
+	
+	private void uploadFile(String filename) throws RequestExecutionException, DisconnectionException {
+		File uploadFile = new File(filename);
+		System.out.println("C - Got Greeting response... requesting to Upload");
+
+        FileInputStream fis = null;
+
+        try {
+			fis = new FileInputStream(uploadFile);
+		} catch (FileNotFoundException e1) {
+			throw new RequestExecutionException("Unable to find the file you requested to upload: " + uploadFile.getName() + 
+					"\nPlease ensure the path to the file you provided is correct and then try your request again");
+		}
+        
+        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + 
+        		"C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3" + " " 
+        		+ uploadFile.length() +"\n");
+        pw.flush();
+        
+        try {
+	        String line = readLine(mySocket);
+	        
+	        if(line == null || !line.startsWith(ConnectionSettings.UPLOAD_OK)) {
+	        	System.err.println("Did not get the upload ok from server: " + line);
+	        	throw new RequestExecutionException("The server has rejected your request to upload the file.  Please ensure you have" +
+	        			" the proper privledges and then try your request again");
+	        }
+	        
+	        String stringArugments = line.substring(ConnectionSettings.UPLOAD_OK.length()).trim();
+	        String[] arguments = stringArugments.split(" ");
+	        
+	        long startPosition = Long.parseLong(arguments[0]);
+	        
+	        boolean readPartFile = startPosition != 0; 
+	        
+	        System.out.println("C - Received upload acceptance");
+	        
+	        byte[] buffer = new byte[64000];
+	        
+	        OutputStream out = mySocket.getOutputStream();
+			
+	        long totalBytesRead = 0;
+	        
+			while (true) {
+				int numBytesRead = fis.read(buffer);
+				if(numBytesRead == -1) break;
+				
+				totalBytesRead += numBytesRead;
+				
+				if(readPartFile) {
+					if(totalBytesRead > startPosition) {
+						int numBytesLeft = (int)(startPosition % 64000);
+						out.write(buffer, numBytesLeft, numBytesRead - numBytesLeft);
+						out.flush();
+						readPartFile = false;
+					}
+				}
+				else {
+					out.write(buffer, 0, numBytesRead);
+					out.flush();
+				}
+			}
+			
+			fis.close();
+			
+			System.out.println("C - Sent the whole file");
+			
+			line = readLine(mySocket);
+			
+			if(!ConnectionSettings.UPLOAD_FINISHED.equals(line)) {
+				System.err.println("Did not receive upload finished: " + line);
+				throw new RequestExecutionException("An error has occurred on the server's side while attempting to upload the file. " +
+						" Please try your upload request again");
+			}
+        } catch(IOException e) {
+        	throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your upload request again.  If the upload had begun, it will resume where it left off");
+        }
+	}
+	
+	private void deleteFile(String filename) throws RequestExecutionException, DisconnectionException {
+		System.out.println("C - Got Greeting response... requesting to delete");
+		
+		pw.write(ConnectionSettings.DELETE_REQUEST + " " + filename + "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your deletion request again");
+		}
+        
+        if(ConnectionSettings.DELETE_SUCCESS.equals(line)) {
+        	System.out.println("The deletion was successful");
+        }
+        else {
+        	System.err.println("The deletion has failed");
+        	throw new RequestExecutionException("The file was unable to be deleted on the server.  Please ensure you have the" +
+        			" proper privledges and then try your request again");
+        }
+	}
+
+	
+	private String readLine(Socket socket) throws IOException {
+		String line = new String();
+		int c;
+
+		while ((c = socket.getInputStream().read()) != '\n') {
+			if(c == -1) {
+				throw new IOException("The socket closed before being able to read the end of the line");
+			}
+			
+			line += (char) c;
+		}
+
+		return line.trim();
+	}
+}

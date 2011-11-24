@@ -1,7 +1,6 @@
 package com.cs456.project.server.requests;
 
-import com.cs456.project.server.protocol.Credentials;
-import com.cs456.project.server.requests.Request.RequestType;
+import com.cs456.project.common.Credentials;
 
 public class UploadRequest extends Request {
 	private String nameOnServer = null;

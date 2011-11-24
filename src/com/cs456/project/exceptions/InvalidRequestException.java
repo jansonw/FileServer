@@ -1,4 +1,4 @@
-package com.cs456.project.server.exceptions;
+package com.cs456.project.exceptions;
 
 @SuppressWarnings("serial")
 public class InvalidRequestException extends Exception {

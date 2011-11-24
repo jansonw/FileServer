@@ -18,12 +18,11 @@ import java.sql.SQLException;
 
 import org.apache.log4j.Logger;
 
+import com.cs456.project.common.ConnectionSettings;
+import com.cs456.project.common.Credentials;
+import com.cs456.project.exceptions.AuthenticationException;
+import com.cs456.project.exceptions.InvalidRequestException;
 import com.cs456.project.server.database.DatabaseManager;
-import com.cs456.project.server.exceptions.BadAuthenticationException;
-import com.cs456.project.server.exceptions.InvalidRequestException;
-import com.cs456.project.server.protocol.ConnectionSettings;
-import com.cs456.project.server.protocol.Credentials;
-import com.cs456.project.server.requests.CloseRequest;
 import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
@@ -58,7 +57,7 @@ public class ServerConnectionThread extends Thread {
 			logger.error("An error occurred while querying the database for the requested username and password", e);
 			closeClientConnection();
 			return;
-		} catch (BadAuthenticationException e) {
+		} catch (AuthenticationException e) {
 			logger.error("The client was not authenticated and thus is being kicked out.  The attempted username and password were:" +
 					" username=" + e.getUsername() + " password=" + e.getPassword());
 			closeClientConnection();
@@ -118,9 +117,6 @@ public class ServerConnectionThread extends Thread {
 			}
 			
 			break;
-		case GOODBYE:
-			closeClientConnection();
-			return;
 		case DELETE:
 			boolean success = deleteFile((DeleteRequest)request);
 			
@@ -145,7 +141,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	
-	private Credentials initiateClientConnection() throws IOException, SQLException, BadAuthenticationException {
+	private Credentials initiateClientConnection() throws IOException, SQLException, AuthenticationException {
 		out = socket.getOutputStream();
 		pw = new PrintWriter(out);
 
@@ -175,7 +171,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
 			pw.flush();
 			
-			throw new BadAuthenticationException("The username combination was not found in the database", username, password, false);
+			throw new AuthenticationException("The username combination was not found in the database", username, password, false);
 		}
 		
 		if(!password.equals(rs.getString("password"))) {
@@ -194,7 +190,7 @@ public class ServerConnectionThread extends Thread {
 				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where username='" + username + "'");
 			}
 		    			
-			throw new BadAuthenticationException("The username/password combination was not found in the database", username, password, false);
+			throw new AuthenticationException("The username/password combination was not found in the database", username, password, false);
 		}
 		
 		
@@ -206,7 +202,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.LOCKED_OUT + "\n");
 			pw.flush();
 			
-			throw new BadAuthenticationException("The user is locked out", username, password, true);
+			throw new AuthenticationException("The user is locked out", username, password, true);
 		}	
 		
 		if(rs.getInt("num_fail") != 0) {
@@ -252,10 +248,6 @@ public class ServerConnectionThread extends Thread {
 			long startPosition = Long.parseLong(arguments[1].trim());
 			
 			request = new DownloadRequest(downloadFilename, startPosition, credentials);			
-		} 
-		else if (ConnectionSettings.GOODBYE.equals(line)) {
-			logger.info("The client <" + socket.getInetAddress() + "> has sent the goodbye message");
-			request = new CloseRequest(credentials);
 		}
 		else if (line != null && line.startsWith(ConnectionSettings.DELETE_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.DELETE_REQUEST.length()).trim();

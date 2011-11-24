@@ -7,8 +7,8 @@ import java.net.SocketException;
 
 import org.apache.log4j.Logger;
 
+import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.server.database.DatabaseManager;
-import com.cs456.project.server.protocol.ConnectionSettings;
 
 public class MyServer {
 	private static Logger logger = Logger.getLogger(MyServer.class);
