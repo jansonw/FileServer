@@ -20,7 +20,10 @@ public class ConnectionSettings {
 	public static final String REGISTRATION_FAILED = "REGISTRATION_FAILED";
 	public static final String REGISTRATION_INVALID = "REGISTRATION_INVALID";
 	public static final String REGISTRATION_OK = "REGISTRATION_OK";
-	
+	public static final String PASSWORD_CHANGE_REQUEST = "PASSWORD_CHANGE_REQUEST";
+	public static final String PASSWORD_CHANGE_OK = "PASSWORD_CHANGE_OK";
+	public static final String PASSWORD_CHANGE_FAILED = "PASSWORD_CHANGE_FAILED";
+
 	public static final String hostname = "localhost";
 	public static final int port = 62009;
 			

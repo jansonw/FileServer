@@ -22,11 +22,12 @@ import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.InvalidRequestException;
+import com.cs456.project.exceptions.RegistrationException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.server.database.DatabaseManager;
 import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
-import com.cs456.project.server.requests.RegistrationRequest;
+import com.cs456.project.server.requests.PasswordChangeRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
 import com.cs456.project.server.requests.Request;
 import com.cs456.project.server.requests.UploadRequest;
@@ -51,6 +52,12 @@ public class ServerConnectionThread extends Thread {
 		
 		try {
 			credentials = initiateClientConnection();
+			
+			if(credentials == null) {
+				logger.info("The client successfully registered a new account.  Closing the connection...");
+				closeClientConnection();
+				return;
+			}
 		} catch (IOException e) {
 			logger.error("An error occurred while initiating connection with the client", e);
 			closeClientConnection();
@@ -62,6 +69,10 @@ public class ServerConnectionThread extends Thread {
 		} catch (AuthenticationException e) {
 			logger.error("The client was not authenticated and thus is being kicked out.  The attempted username and password were:" +
 					" username=" + e.getUsername() + " password=" + e.getPassword());
+			closeClientConnection();
+			return;
+		} catch (RegistrationException e) {
+			logger.error("An error occurred while registering the client.", e);
 			closeClientConnection();
 			return;
 		}
@@ -137,11 +148,11 @@ public class ServerConnectionThread extends Thread {
 				return;
 			}
 			break;
-		case REGISTRATION:
-			boolean registrationSuccess = registerUser((RegistrationRequest)request);
+		case PASSWORD_CHANGE:
+			boolean passSuccess = passwordChange((PasswordChangeRequest)request);
 			
-			if(!registrationSuccess) {
-				logger.error("Failed to register the new user");
+			if(!passSuccess) {
+				logger.error("Failed to change the user's password");
 				closeClientConnection();
 				return;
 			}
@@ -152,7 +163,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	
-	private Credentials initiateClientConnection() throws IOException, SQLException, AuthenticationException {
+	private Credentials initiateClientConnection() throws IOException, SQLException, AuthenticationException, RegistrationException {
 		out = socket.getOutputStream();
 		pw = new PrintWriter(out);
 
@@ -161,18 +172,32 @@ public class ServerConnectionThread extends Thread {
 		logger.info("Waiting for greeting from client");
 
 		line = readLine(socket);
-		if (line == null || !line.startsWith(ConnectionSettings.GREETING)) {
+		
+		Credentials credentials = null;
+		
+		if(line != null && line.startsWith(ConnectionSettings.GREETING)) {
+			credentials = authenticateClient(line);
+		}
+		else if(line != null && line.startsWith(ConnectionSettings.REGISTRATION_REQUEST)) {
+			registerUser(line);
+		}
+		else {
 			logger.info("The client did not properly do the handshake, " +
 					"and thus the client <" + socket.getInetAddress() + "> is being rejected");
+			
 		}
 		
+		return credentials;
+	}
+	
+	private Credentials authenticateClient(String line) throws SQLException, AuthenticationException {
 		String stringArguments = line.substring(ConnectionSettings.GREETING.length()).trim();
 		String[] arguments = stringArguments.split(" ");
 		
 		String username = arguments[0];
 		String password = arguments[1];
 		
-		String query = "Select * from USERS where username = '" + username + "'";
+		String query = "Select * from USERS where username=upper('" + username + "')";
 		ResultSet rs = dbm.executeQuery(query);
 		
 		if(!rs.next()) {
@@ -195,10 +220,10 @@ public class ServerConnectionThread extends Thread {
 			int numFail = rs.getInt("num_fail") + 1;
 			
 			if(numFail == 3) {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where username='" + username + "'");
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where username=upper('" + username + "')");
 			}
 			else {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where username='" + username + "'");
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where username=upper('" + username + "')");
 			}
 		    			
 			throw new AuthenticationException("The username/password combination was not found in the database", username, password, false);
@@ -282,17 +307,17 @@ public class ServerConnectionThread extends Thread {
 			
 			request = new RemoteFileDownloadRequest(url, serverLocation, credentials);
 		}
-		else if(line != null && line.startsWith(ConnectionSettings.REGISTRATION_REQUEST)) {
-			String stringArguments = line.substring(ConnectionSettings.REGISTRATION_REQUEST.length()).trim();
+		else if(line != null && line.startsWith(ConnectionSettings.PASSWORD_CHANGE_REQUEST)) {
+			String stringArguments = line.substring(ConnectionSettings.PASSWORD_CHANGE_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			String username = arguments[0];
-			String password = arguments[1];
+			String oldPassword = arguments[0];
+			String newPassword = arguments[1];
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to register a new user with username: " + username +
-					" and password: " + password);
+			logger.info("The client <" + socket.getInetAddress() + "> has requested to change their password from: " + oldPassword +
+					" to: " + newPassword);
 			
-			request = new RegistrationRequest(new Credentials(username, password));
+			request = new PasswordChangeRequest(oldPassword, newPassword, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -502,27 +527,63 @@ public class ServerConnectionThread extends Thread {
 		return true;
 	}
 	
-	private boolean registerUser(RegistrationRequest request) {
+	private void registerUser(String line) throws RegistrationException {
+		String stringArguments = line.substring(ConnectionSettings.REGISTRATION_REQUEST.length()).trim();
+		String[] arguments = stringArguments.split(" ");
+		
+		String username = arguments[0];
+		String password = arguments[1];
+		
+		logger.info("The client <" + socket.getInetAddress() + "> has requested to register a new user with username: " + username +
+				" and password: " + password);
+		
 		try {
-			dbm.registerUser(request.getUsername(), request.getPassword());
+			dbm.registerUser(username, password);
 		} catch (SQLException e) {
-			logger.error("A SQL error occurred while trying to register a new user", e);
+			logger.error("A SQL error occurred while trying to register a new user with username: " + username + " and password: " + password, e);
 			
-			pw.write(ConnectionSettings.REGISTRATION_FAILED);
+			pw.write(ConnectionSettings.REGISTRATION_FAILED + "\n");
 			pw.flush();
-			return false;
+			
+			throw new RegistrationException("The registration was not successful due to an SQL error");
 		} catch (RequestExecutionException e) {
 			logger.error(e.getMessage());
 			
-			pw.write(ConnectionSettings.REGISTRATION_INVALID);
+			pw.write(ConnectionSettings.REGISTRATION_INVALID + "\n");
 			pw.flush();
+			
+			throw new RegistrationException("The registration was not successful as the username is already in use");
+		}
+		
+		pw.write(ConnectionSettings.REGISTRATION_OK + "\n");
+		pw.flush();
+	}
+	
+	private boolean passwordChange(PasswordChangeRequest request) {
+		
+		try {
+			dbm.passwordChange(request.getUsername(), request.getOldPassword(), request.getNewPassword());
+		} catch (SQLException e) {
+			pw.write(ConnectionSettings.PASSWORD_CHANGE_FAILED + "\n");
+			pw.flush();
+			
+			logger.error("An SQL exception has occurred while attempting to change the user's password", e);
+			return false;
+		} catch (RequestExecutionException e) {
+			pw.write(ConnectionSettings.PASSWORD_CHANGE_FAILED + "\n");
+			pw.flush();
+			
+			logger.error("The old password the user provided was not correct");
 			return false;
 		}
 		
-		pw.write(ConnectionSettings.REGISTRATION_OK);
+		pw.write(ConnectionSettings.PASSWORD_CHANGE_OK + "\n");
 		pw.flush();
 		
+		logger.info("The user's password was successfully changed");
+		
 		return true;
+				
 	}
 	
 	private String readLine(Socket socket) throws IOException {

@@ -135,6 +135,27 @@ public class ClientConnection implements RequestInterface {
 		}
 	}
 	
+	public void requestPasswordChange(String oldPassword, String newPassword) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		try {
+			openConnection();
+			initiateRequestConnection();
+			changePassword(oldPassword, newPassword);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+	}
+	
 	private void openConnection() throws DisconnectionException {
 		try {
 			mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
@@ -433,6 +454,30 @@ public class ClientConnection implements RequestInterface {
         			" Please try your registry again");
         			
         }
+	}
+	
+	private void changePassword(String oldPassword, String newPassword) throws RequestExecutionException, DisconnectionException {
+		System.out.println("C - Got Greeting response... requesting password change");
+		
+		pw.write(ConnectionSettings.PASSWORD_CHANGE_REQUEST + " " + oldPassword + " " + newPassword + "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your password change request again");
+		}
+        
+        if(ConnectionSettings.PASSWORD_CHANGE_OK.equals(line)) {
+        	System.out.println("The password change was successful");
+        }
+        else if(ConnectionSettings.PASSWORD_CHANGE_FAILED.equals(line)) {
+        	System.err.println("The password change was not successful");
+        	throw new RequestExecutionException("Your password change request could not be serviced at this time.  Please try again later");
+        }
+		
 	}
 	
 	private String readLine(Socket socket) throws IOException {

@@ -20,4 +20,7 @@ public interface RequestInterface {
 	
 	public void requestUserRegistration(String username, String password) 
 			throws RequestExecutionException, DisconnectionException;
+	
+	public void requestPasswordChange(String oldPassword, String newPassword) 
+			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 }

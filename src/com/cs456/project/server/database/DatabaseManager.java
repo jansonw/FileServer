@@ -47,13 +47,23 @@ public class DatabaseManager {
 	}
 	
 	public synchronized void registerUser(String username, String password) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Users where username='" + username + "'");
+		ResultSet rs = executeQuery("Select * from Users where username=upper('" + username + "')");
 		
 		if(rs.next()) {
-			throw new RequestExecutionException("The username: " + username + " is already taken.  Please try registering with a different username");
+			throw new RequestExecutionException("The username: " + username + " is already taken.");
 		}
 		
-		executeQuery("Insert into Users values (" + username + ", " + password + "0, F");
+		executeQuery("Insert into Users values (upper('" + username + "'), '" + password + "', '0', 'N')");
+	}
+	
+	public synchronized void passwordChange(String username, String oldPassword, String newPassword) throws SQLException, RequestExecutionException {
+		ResultSet rs = executeQuery("Select * from Users where username=upper('" + username + "') and password='" + oldPassword + "'");
+		
+		if(!rs.next()) {
+			throw new RequestExecutionException("The password supplied for username: " + username + " is incorrect!");
+		}
+		
+		executeQuery("Update Users set password='" + newPassword + "' where username=upper('" + username + "')");
 	}
 	
 	public synchronized ResultSet executeQuery(String query) throws SQLException {
