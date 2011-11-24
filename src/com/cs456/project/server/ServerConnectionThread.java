@@ -22,9 +22,11 @@ import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.InvalidRequestException;
+import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.server.database.DatabaseManager;
 import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
+import com.cs456.project.server.requests.RegistrationRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
 import com.cs456.project.server.requests.Request;
 import com.cs456.project.server.requests.UploadRequest;
@@ -75,7 +77,7 @@ public class ServerConnectionThread extends Thread {
 			logger.error("An error occurred when trying to obtain the clients <" + socket.getInetAddress() + "> request", e);
 			closeClientConnection();
 			return;
-		}
+		} 
 					
 		switch(request.getRequestType()) {
 		case DOWNLOAD:
@@ -135,6 +137,15 @@ public class ServerConnectionThread extends Thread {
 				return;
 			}
 			break;
+		case REGISTRATION:
+			boolean registrationSuccess = registerUser((RegistrationRequest)request);
+			
+			if(!registrationSuccess) {
+				logger.error("Failed to register the new user");
+				closeClientConnection();
+				return;
+			}
+			break;
 		}
 		
 		closeClientConnection();		
@@ -171,7 +182,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
 			pw.flush();
 			
-			throw new AuthenticationException("The username combination was not found in the database", username, password, false);
+			throw new AuthenticationException("The username was not found in the database", username, password, false);
 		}
 		
 		if(!password.equals(rs.getString("password"))) {
@@ -270,6 +281,18 @@ public class ServerConnectionThread extends Thread {
 					" and store it here: " + serverLocation);
 			
 			request = new RemoteFileDownloadRequest(url, serverLocation, credentials);
+		}
+		else if(line != null && line.startsWith(ConnectionSettings.REGISTRATION_REQUEST)) {
+			String stringArguments = line.substring(ConnectionSettings.REGISTRATION_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			String username = arguments[0];
+			String password = arguments[1];
+			
+			logger.info("The client <" + socket.getInetAddress() + "> has requested to register a new user with username: " + username +
+					" and password: " + password);
+			
+			request = new RegistrationRequest(new Credentials(username, password));
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -475,6 +498,29 @@ public class ServerConnectionThread extends Thread {
 			logger.error("An error has occurred while downloading the file", e);
 			return false;
 		}
+		
+		return true;
+	}
+	
+	private boolean registerUser(RegistrationRequest request) {
+		try {
+			dbm.registerUser(request.getUsername(), request.getPassword());
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while trying to register a new user", e);
+			
+			pw.write(ConnectionSettings.REGISTRATION_FAILED);
+			pw.flush();
+			return false;
+		} catch (RequestExecutionException e) {
+			logger.error(e.getMessage());
+			
+			pw.write(ConnectionSettings.REGISTRATION_INVALID);
+			pw.flush();
+			return false;
+		}
+		
+		pw.write(ConnectionSettings.REGISTRATION_OK);
+		pw.flush();
 		
 		return true;
 	}

@@ -3,7 +3,7 @@ package com.cs456.project.server.requests;
 import com.cs456.project.common.Credentials;
 
 public abstract class Request {
-	public static enum RequestType { DOWNLOAD, UPLOAD, GOODBYE, DELETE, REMOTE_FILE_DOWNLOAD }
+	public static enum RequestType { DOWNLOAD, UPLOAD, GOODBYE, DELETE, REMOTE_FILE_DOWNLOAD, REGISTRATION }
 	
 	protected RequestType request = null;
 	protected Credentials credentials = null;

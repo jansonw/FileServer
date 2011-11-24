@@ -16,6 +16,7 @@ import com.cs456.project.common.Credentials;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
+import com.cs456.project.exceptions.RequestPermissionsException;
 
 public class ClientConnection implements RequestInterface {
 	private Socket mySocket = null;	
@@ -26,80 +27,115 @@ public class ClientConnection implements RequestInterface {
 	public ClientConnection(Credentials credentials) {
 		this.credentials = credentials;
 	}
+	
+	public void setCredentials(Credentials credentials) {
+		this.credentials = credentials;
+	}
 
 	@Override
-	public void requestFileDownload(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+	public void requestFileDownload(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {	
-			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			openConnection();
+			initiateRequestConnection();
 			downloadFile(fileLocationOnServer);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
 			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
 		} catch (RequestExecutionException e) {
 			closeConnection();			
 			throw e;
 		} catch (DisconnectionException e) {
 			closeConnection();			
 			throw e;
-		} 
+		}
 	}
 
 	@Override
-	public void requestFileUpload(String fileLocation) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+	public void requestFileUpload(String fileLocation) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
-			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			openConnection();
+			initiateRequestConnection();
 			uploadFile(fileLocation);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
 			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
 		} catch (RequestExecutionException e) {
 			closeConnection();			
 			throw e;
 		} catch (DisconnectionException e) {
 			closeConnection();			
 			throw e;
-		} 
+		}
 	}
 
 	@Override
-	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
-			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			openConnection();
+			initiateRequestConnection();
 			remoteFileDownload(urlLocation, locationOnServer);
 			closeConnection();
 		} catch (AuthenticationException e) {
-			closeConnection();
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
 			throw e;
 		} catch (RequestExecutionException e) {
-			closeConnection();
+			closeConnection();			
 			throw e;
 		} catch (DisconnectionException e) {
-			closeConnection();
+			closeConnection();			
 			throw e;
 		}
 	}
 
 	@Override
-	public void requestFileDeletion(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException {
+	public void requestFileDeletion(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
-			initiateConnection(credentials.getUsername(), credentials.getPassword());
+			openConnection();
+			initiateRequestConnection();
 			deleteFile(fileLocationOnServer);
 			closeConnection();
 		} catch (AuthenticationException e) {
-			closeConnection();
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
 			throw e;
 		} catch (RequestExecutionException e) {
-			closeConnection();
+			closeConnection();			
 			throw e;
 		} catch (DisconnectionException e) {
-			closeConnection();
+			closeConnection();			
 			throw e;
 		}
 	}
-		
-	private void initiateConnection(String username, String password) throws DisconnectionException, AuthenticationException {
+	
+	@Override
+	public void requestUserRegistration(String username, String password) throws RequestExecutionException, DisconnectionException {
+		try {
+			openConnection();
+			registerUser(username, password);
+			closeConnection();
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+	}
+	
+	private void openConnection() throws DisconnectionException {
 		try {
 			mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
 			pw = new PrintWriter(mySocket.getOutputStream());
@@ -108,10 +144,16 @@ public class ClientConnection implements RequestInterface {
 		} catch (IOException e) {
 			throw new DisconnectionException("Unable to establish a connection with the server, please try again later");
 		}
-					
+	}
+		
+	private void initiateRequestConnection() throws DisconnectionException, AuthenticationException, RequestPermissionsException {
+		if(credentials == null) {
+			throw new RequestPermissionsException("You must log in before you can make any requests");
+		}
+		
 		System.out.println("C - Sending Greeting");
 		
-		pw.write(ConnectionSettings.GREETING + " " + username + " " + password + "\n");
+		pw.write(ConnectionSettings.GREETING + " " + credentials.getUsername() + " " + credentials.getPassword() + "\n");
 		pw.flush();
 				
 		System.out.println("C - Waiting for Greeting response");
@@ -127,13 +169,13 @@ public class ClientConnection implements RequestInterface {
 			System.out.println("I was authenticated!");
 		}
 		else if(ConnectionSettings.BAD_AUTHENTICATION.equals(line)) {
-			System.err.println("I was not authenticated using: username=" + username + " password=" + password);
-			throw new AuthenticationException("The username and/or password you provided is incorrect", username, password, false);
+			System.err.println("I was not authenticated using: username=" + credentials.getUsername() + " password=" + credentials.getPassword());
+			throw new AuthenticationException("The username and/or password you provided is incorrect", credentials.getUsername(), credentials.getPassword(), false);
 		}
 		else if(ConnectionSettings.LOCKED_OUT.equals(line)) {
-			System.err.println("I am locked out using: username=" + username + " password=" + password);
+			System.err.println("I am locked out using: username=" + credentials.getUsername() + " password=" + credentials.getPassword());
 			throw new AuthenticationException("The account you are attempting to use is currently locked. " +
-					"Please contact customer support at support@filestorage.com to unlock your account", username, password, true);
+					"Please contact customer support at support@filestorage.com to unlock your account", credentials.getUsername(), credentials.getPassword(), true);
 		}
 		else {
 			System.err.println("The server returned a weird response: " + line);
@@ -364,6 +406,34 @@ public class ClientConnection implements RequestInterface {
         }
 	}
 
+	private void registerUser(String username, String password) throws DisconnectionException, RequestExecutionException {
+		System.out.println("C - Got Greeting response... requesting to register user");
+		
+		pw.write(ConnectionSettings.REGISTRATION_REQUEST + " " + username + " " + password + "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your registration request again");
+		}
+        
+        if(ConnectionSettings.REGISTRATION_OK.equals(line)) {
+        	System.out.println("The registration was successful");
+        }
+        else if(ConnectionSettings.REGISTRATION_INVALID.equals(line)) {
+        	System.err.println("The username is already taken: " + username);
+        	throw new RequestExecutionException("The username you chose: " + username + " has already been chosen. Please choose a" +
+        			" different username and try the registry again");
+        }
+        else if(ConnectionSettings.REGISTRATION_FAILED.equals(line)) {
+        	throw new RequestExecutionException("An error occurred while attempting to register your username: " + username + " on the server." +
+        			" Please try your registry again");
+        			
+        }
+	}
 	
 	private String readLine(Socket socket) throws IOException {
 		String line = new String();

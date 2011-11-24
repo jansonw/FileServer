@@ -7,6 +7,8 @@ import java.sql.SQLException;
 
 import org.apache.log4j.Logger;
 
+import com.cs456.project.exceptions.RequestExecutionException;
+
 public class DatabaseManager {
 	private static DatabaseManager singleton = null;
 	private Connection connection = null;
@@ -44,7 +46,15 @@ public class DatabaseManager {
 		connection = DriverManager.getConnection(url, username, password);
 	}
 	
-	
+	public synchronized void registerUser(String username, String password) throws SQLException, RequestExecutionException {
+		ResultSet rs = executeQuery("Select * from Users where username='" + username + "'");
+		
+		if(rs.next()) {
+			throw new RequestExecutionException("The username: " + username + " is already taken.  Please try registering with a different username");
+		}
+		
+		executeQuery("Insert into Users values (" + username + ", " + password + "0, F");
+	}
 	
 	public synchronized ResultSet executeQuery(String query) throws SQLException {
 		return connection.createStatement().executeQuery(query);			

@@ -16,6 +16,10 @@ public class ConnectionSettings {
 	public static final String REMOTE_DOWNLOAD_DECLINE = "REMOTE_DOWNLOAD_DECLINE";
 	public static final String BAD_AUTHENTICATION = "BAD_AUTHENTICATION";
 	public static final String LOCKED_OUT = "LOCKED_OUT";
+	public static final String REGISTRATION_REQUEST = "REGISTRATION_REQUEST";
+	public static final String REGISTRATION_FAILED = "REGISTRATION_FAILED";
+	public static final String REGISTRATION_INVALID = "REGISTRATION_INVALID";
+	public static final String REGISTRATION_OK = "REGISTRATION_OK";
 	
 	public static final String hostname = "localhost";
 	public static final int port = 62009;
