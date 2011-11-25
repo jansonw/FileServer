@@ -9,7 +9,7 @@ public interface RequestInterface {
 	public void requestFileDownload(String localFileLocation, String fileLocationOnServer) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
-	public void requestFileUpload(String fileLocation, String serverFilename) 
+	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
 	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) 

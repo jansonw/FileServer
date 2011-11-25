@@ -13,6 +13,7 @@ import java.net.UnknownHostException;
 
 import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
@@ -55,11 +56,11 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileUpload(String fileLocation, String serverFilename) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
 			openConnection();
 			initiateRequestConnection();
-			uploadFile(fileLocation, serverFilename);
+			uploadFile(fileLocation, serverFilename, isShared);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -351,7 +352,7 @@ public class ClientConnection implements RequestInterface {
 		pw.flush();
 	}
 	
-	private void uploadFile(String filename, String serverFilename) throws RequestExecutionException, DisconnectionException {
+	private void uploadFile(String filename, String serverFilename, boolean isShared) throws RequestExecutionException, DisconnectionException {
 		File uploadFile = new File(filename);
 		System.out.println("C - Got Greeting response... requesting to Upload");
 
@@ -364,7 +365,7 @@ public class ClientConnection implements RequestInterface {
 					"\nPlease ensure the path to the file you provided is correct and then try your request again");
 		}
         
-        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + serverFilename + " " + uploadFile.length() +"\n");
+        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + serverFilename + " " + uploadFile.length() + " " + FileWrapper.booleanToChar(isShared) + "\n");
         pw.flush();
         
         try {

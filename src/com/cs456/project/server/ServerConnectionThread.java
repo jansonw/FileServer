@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 
 import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.InvalidRequestException;
 import com.cs456.project.exceptions.RegistrationException;
@@ -130,6 +131,10 @@ public class ServerConnectionThread extends Thread {
 				return;
 			} catch (IOException e) {
 				logger.error("An error occurred while receiving the requested file", e);
+				closeClientConnection();
+				return;
+			} catch (RequestExecutionException e) {
+				logger.error(e);
 				closeClientConnection();
 				return;
 			}
@@ -279,14 +284,15 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.UPLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 2) {
+			if(arguments.length != 3) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their upload request", line);
 			}
 			
 			String nameOnServer = arguments[0].trim();
 			long fileSize = Long.parseLong(arguments[1].trim());
+			boolean isShared = FileWrapper.charToBoolean(arguments[2].trim());
 			
-			request = new UploadRequest(nameOnServer, fileSize, credentials);			
+			request = new UploadRequest(nameOnServer, fileSize, isShared, credentials);			
 		}
 		// DOWNLOAD
 		else if (line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REQUEST)) {
@@ -481,7 +487,7 @@ public class ServerConnectionThread extends Thread {
 		return true;
 	}
 	
-	private boolean receiveFile(UploadRequest request) throws FileNotFoundException, IOException {
+	private boolean receiveFile(UploadRequest request) throws FileNotFoundException, IOException, RequestExecutionException {
 		logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request for a file of size " + 
 				request.getFileSize() + " bytes");
 		
@@ -513,7 +519,33 @@ public class ServerConnectionThread extends Thread {
 		pw.flush();
 
 		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
-
+		
+		FileWrapper wrapper = new FileWrapper(destinationPart.getName(), request.getUsername(), request.isShared(), false);
+		if(partFileLength == 0) {
+			try {
+				dbm.addFile(wrapper);
+			} catch (SQLException e) {
+				logger.error("A SQL error occurred while adding a new file: " + wrapper.getFilePath() + " to the database", e);
+				throw new RequestExecutionException("The file upload failed");
+				
+			} catch (RequestExecutionException e) {
+				logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
+				throw e;
+			}
+		}
+		else {
+			try {
+				dbm.updateFile(destinationPart.getName(), wrapper);
+			} catch (SQLException e) {
+				logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
+				throw new RequestExecutionException("The file upload failed");			
+			} catch (RequestExecutionException e) {
+				logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
+				throw e;
+			}
+		} 
+		
+		
 		byte[] buffer = new byte[64000];
 		long totalBytesRead = partFileLength;
 
@@ -539,6 +571,14 @@ public class ServerConnectionThread extends Thread {
 		
 		fileOut.close();
 		
+		if (totalBytesRead != request.getFileSize()) {
+			logger.warn("Only received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the uploaded file");
+			
+			pw.write(ConnectionSettings.UPLOAD_FAIL + " " + totalBytesRead + "\n");
+			pw.flush();
+			return false;
+		}
+		
 		if(!destinationPart.renameTo(destination)) {
 			logger.error("Although the .part file is complete, could not rename the file to remove the .part..." +
 					"please fix the problem and run the upload again, or manually remove the .part extension");
@@ -547,14 +587,17 @@ public class ServerConnectionThread extends Thread {
 			pw.flush();
 			return false;
 		}
-
-		if (totalBytesRead != request.getFileSize()) {
-			logger.warn("Only received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the uploaded file");
-			
-			pw.write(ConnectionSettings.UPLOAD_FAIL + " " + totalBytesRead + "\n");
-			pw.flush();
-			return false;
-		}
+		
+		wrapper = new FileWrapper(destination.getName(), request.getUsername(), request.isShared(), true);
+		try {
+			dbm.updateFile(destinationPart.getName(), wrapper);
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
+			throw new RequestExecutionException("The file upload failed");			
+		} catch (RequestExecutionException e) {
+			logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
+			throw e;
+		}		
 
 		logger.info("Received the file in its entirety");
 
