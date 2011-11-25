@@ -48,7 +48,7 @@ public class DatabaseManager {
 	}
 	
 	public synchronized void registerUser(String username, String password) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Users where username=upper('" + username + "')");
+		ResultSet rs = executeQuery("Select * from Users where upper(username)=upper('" + username + "')");
 		
 		if(rs.next()) {
 			throw new RequestExecutionException("The username: " + username + " is already taken.");
@@ -58,17 +58,17 @@ public class DatabaseManager {
 	}
 	
 	public synchronized void passwordChange(String username, String oldPassword, String newPassword) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Users where username=upper('" + username + "') and password='" + oldPassword + "'");
+		ResultSet rs = executeQuery("Select * from Users where upper(username)=upper('" + username + "') and password='" + oldPassword + "'");
 		
 		if(!rs.next()) {
 			throw new RequestExecutionException("The password supplied for username: " + username + " is incorrect!");
 		}
 		
-		executeQuery("Update Users set password='" + newPassword + "' where username=upper('" + username + "')");
+		executeQuery("Update Users set password='" + newPassword + "' where upper(username)=upper('" + username + "')");
 	}
 	
 	public synchronized void addFile(FileWrapper wrapper) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Files where file_path='" + wrapper.getFilePath() + "'");
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "')");
 		
 		if(rs.next()) {
 			throw new RequestExecutionException("The file_path: " + wrapper.getFilePath() + " already exists.");
@@ -82,17 +82,17 @@ public class DatabaseManager {
 	}
 	
 	public synchronized void deleteFile(String filePath) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Files where file_path='" + filePath + "'");
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + filePath + "')");
 		
 		if(!rs.next()) {
 			throw new RequestExecutionException("The file_path: " + filePath + " does not exist.");
 		}
 		
-		executeQuery("Delete from Files values where filePath='" + filePath + "'");
+		executeQuery("Delete from Files where upper(file_path)=upper('" + filePath + "')");
 	}
 	
 	public synchronized void updateFile(String lookupFilePath, FileWrapper wrapper) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Files where file_path='" + lookupFilePath + "'");
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + lookupFilePath + "')");
 		
 		if(!rs.next()) {
 			throw new RequestExecutionException("The file_path: " + lookupFilePath + " does not exist.");
@@ -101,11 +101,11 @@ public class DatabaseManager {
 		executeQuery("Update Files " + "set file_path='" + wrapper.getFilePath() 
 				+ "', shared='" + FileWrapper.booleanToChar(wrapper.isShared())
 				+ "', complete='" + FileWrapper.booleanToChar(wrapper.isComplete()) 
-				+ "' where file_path='" + lookupFilePath + "'");
+				+ "' where upper(file_path)=upper('" + lookupFilePath + "')");
 	}
 	
 	public synchronized FileWrapper getFile(String filePath) throws SQLException {
-		ResultSet rs = executeQuery("Select * from Files where file_path='" + filePath + "'");
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + filePath + "')");
 		
 		if(!rs.next()) {
 			return null;

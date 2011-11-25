@@ -6,7 +6,7 @@ import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
 
 public interface RequestInterface {
-	public void requestFileDownload(String localFileLocation, String fileLocationOnServer) 
+	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
 	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) 
@@ -24,6 +24,6 @@ public interface RequestInterface {
 	public void requestPasswordChange(String oldPassword, String newPassword) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 	
-	public void requestFileExistance(String serverFilePath) 
+	public void requestFileExistance(String serverFilePath, String owner) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 }

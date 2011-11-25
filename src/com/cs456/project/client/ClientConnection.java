@@ -34,11 +34,11 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileDownload(String localFileLocation, String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {	
 			openConnection();
 			initiateRequestConnection();
-			downloadFile(localFileLocation, fileLocationOnServer);
+			downloadFile(localFileLocation, fileLocationOnServer, owner);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -160,11 +160,11 @@ public class ClientConnection implements RequestInterface {
 	}
 	
 	@Override
-	public void requestFileExistance(String serverFilePath) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+	public void requestFileExistance(String serverFilePath, String owner) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
 		try {
 			openConnection();
 			initiateRequestConnection();
-			fileExistance(serverFilePath);
+			fileExistance(serverFilePath, owner);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -263,7 +263,7 @@ public class ClientConnection implements RequestInterface {
         }	
 	}
 	
-	private void downloadFile(String localFilename, String serverFilename) throws RequestExecutionException, DisconnectionException {
+	private void downloadFile(String localFilename, String serverFilename, String owner) throws RequestExecutionException, DisconnectionException {
 		System.out.println("C - Got Greeting response.. requesting download");
 		
 		File destinationPart = new File(localFilename + ".part");
@@ -278,7 +278,7 @@ public class ClientConnection implements RequestInterface {
 		
 		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
 		
-		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " + partFileLength + "\n");
+		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " + partFileLength + " " + owner + "\n");
 		pw.flush();
 		
 		try {
@@ -521,10 +521,10 @@ public class ClientConnection implements RequestInterface {
         }		
 	}
 	
-	private void fileExistance(String serverFilePath) throws DisconnectionException, RequestExecutionException {
+	private void fileExistance(String serverFilePath, String owner) throws DisconnectionException, RequestExecutionException {
 		System.out.println("C - Got Greeting response... requesting file existance");
 		
-		pw.write(ConnectionSettings.FILE_EXISTS_REQUEST + " " + serverFilePath + "\n");
+		pw.write(ConnectionSettings.FILE_EXISTS_REQUEST + " " + serverFilePath + " " + owner + "\n");
         pw.flush();
         
         String line;

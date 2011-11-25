@@ -207,10 +207,10 @@ public class ServerConnectionThread extends Thread {
 			throw new InvalidRequestException("The user did not provide their username and/or password", line);
 		}
 		
-		String username = arguments[0];
+		String username = arguments[0].toUpperCase();
 		String password = arguments[1];
 		
-		String query = "Select * from USERS where username=upper('" + username + "')";
+		String query = "Select * from USERS where upper(username)=upper('" + username + "')";
 		ResultSet rs = dbm.executeQuery(query);
 		
 		if(!rs.next()) {
@@ -233,10 +233,10 @@ public class ServerConnectionThread extends Thread {
 			int numFail = rs.getInt("num_fail") + 1;
 			
 			if(numFail == 3) {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where username=upper('" + username + "')");
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where upper(username)=upper('" + username + "')");
 			}
 			else {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where username=upper('" + username + "')");
+				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where upper(username)=upper('" + username + "')");
 			}
 		    			
 			throw new AuthenticationException("The username/password combination was not found in the database", username, password, false);
@@ -255,7 +255,7 @@ public class ServerConnectionThread extends Thread {
 		}	
 		
 		if(rs.getInt("num_fail") != 0) {
-			dbm.executeQuery("UPDATE USERS set num_fail='0' where username='" + username + "'");
+			dbm.executeQuery("UPDATE USERS set num_fail='0' where upper(username)=upper('" + username + "')");
 		}
 
 		logger.info("The client <" + socket.getInetAddress() + "> has sent the appropriate greeting...returning the favour");
@@ -297,14 +297,15 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 2) {
+			if(arguments.length != 3) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their download request", line);
 			}
 			
 			String downloadFilename = arguments[0].trim();
 			long startPosition = Long.parseLong(arguments[1].trim());
+			String owner = arguments[2].trim();
 			
-			request = new DownloadRequest(downloadFilename, startPosition, credentials);			
+			request = new DownloadRequest(downloadFilename, startPosition, owner, credentials);			
 		}
 		else if (line != null && line.startsWith(ConnectionSettings.DELETE_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.DELETE_REQUEST.length()).trim();
@@ -357,15 +358,16 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.FILE_EXISTS_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 1) {
+			if(arguments.length != 2) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file existance request", line);
 			}
 			
 			String file = arguments[0];
+			String owner = arguments[1];
 			
 			logger.info("The client <" + socket.getInetAddress() + "> has ask whether the file: " + file + "exists on the server");
 			
-			request = new FileExistanceRequest(file, credentials);
+			request = new FileExistanceRequest(file, owner, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -385,7 +387,8 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String root = rootUploadDir + "\\" + homeDir;
 		
 		File fileToDelete = new File(root + request.getFileName());
 		
@@ -399,10 +402,10 @@ public class ServerConnectionThread extends Thread {
 		}
 				
 		try {
-			FileWrapper wrapper = dbm.getFile(fileToDelete.getName());
+			FileWrapper wrapper = dbm.getFile(homeDir + fileToDelete.getName());
 			
 			if(wrapper == null) {
-				logger.error("Unable to delete the file < " + request.getFileName() + "> as the file does not exist");
+				logger.error("Unable to delete the file < " + homeDir + request.getFileName() + "> as the file does not exist");
 				
 				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 				pw.flush();
@@ -425,7 +428,7 @@ public class ServerConnectionThread extends Thread {
 		} 	
 		
 		try {
-			dbm.deleteFile(fileToDelete.getName());
+			dbm.deleteFile(homeDir + fileToDelete.getName());
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while deleting the file: " + fileToDelete.getName(), e);
 			
@@ -468,15 +471,16 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getOwner().toUpperCase() + "\\";
+		String root = rootUploadDir + "\\" + homeDir + "\\";
 		
 		File downloadFile = new File(root + request.getFileName());
 		
 		try {
-			FileWrapper wrapper = dbm.getFile(downloadFile.getName());
+			FileWrapper wrapper = dbm.getFile(homeDir + downloadFile.getName());
 			
 			if(wrapper == null) {
-				logger.error("The file: " + downloadFile.getName() + " could not be found.");
+				logger.error("The file: " + downloadFile.getPath() + " could not be found.");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
 				
@@ -488,6 +492,8 @@ public class ServerConnectionThread extends Thread {
 						" which is owned by: " + wrapper.getOwner() + " and is not shared");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
+				
+				return false;
 			}
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while retrieving the file: " + downloadFile.getName() + " from the database", e);
@@ -564,7 +570,8 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String root = rootUploadDir + "\\" + homeDir;
 		
 		File destinationPart = new File(root + request.getNameOnServer() + ".part");
 		File destination = new File(root + request.getNameOnServer());
@@ -581,7 +588,7 @@ public class ServerConnectionThread extends Thread {
 		
 		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
 		
-		FileWrapper wrapper = new FileWrapper(destinationPart.getName(), request.getUsername(), request.isShared(), false);
+		FileWrapper wrapper = new FileWrapper(homeDir + destinationPart.getName(), request.getUsername(), request.isShared(), false);
 		if(partFileLength == 0) {
 			try {
 				dbm.addFile(wrapper);
@@ -603,7 +610,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		else {
 			try {
-				dbm.updateFile(destinationPart.getName(), wrapper);
+				dbm.updateFile(homeDir + destinationPart.getName(), wrapper);
 			} catch (SQLException e) {
 				logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
 				
@@ -667,9 +674,9 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		wrapper = new FileWrapper(destination.getName(), request.getUsername(), request.isShared(), true);
+		wrapper = new FileWrapper(homeDir + destination.getName(), request.getUsername(), request.isShared(), true);
 		try {
-			dbm.updateFile(destinationPart.getName(), wrapper);
+			dbm.updateFile(homeDir + destinationPart.getName(), wrapper);
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
 			
@@ -704,7 +711,8 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String root = rootUploadDir + "\\" + homeDir;
 		
 		File serverFilePart = new File(root + request.getServerLocation() + ".part");
 		File serverFile = new File(root + request.getServerLocation());
@@ -727,7 +735,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		FileWrapper wrapper = new FileWrapper(serverFilePart.getName(), request.getUsername(), request.isShared(), false);
+		FileWrapper wrapper = new FileWrapper(homeDir + serverFilePart.getName(), request.getUsername(), request.isShared(), false);
 		try {
 			dbm.addFile(wrapper);
 		} catch (SQLException e) {
@@ -764,9 +772,9 @@ public class ServerConnectionThread extends Thread {
 				return false;
 		    }
 		    
-		    wrapper = new FileWrapper(serverFile.getName(), request.getUsername(), request.isShared(), true);
+		    wrapper = new FileWrapper(homeDir + serverFile.getName(), request.getUsername(), request.isShared(), true);
 			try {
-				dbm.updateFile(serverFilePart.getName(), wrapper);
+				dbm.updateFile(homeDir + serverFilePart.getName(), wrapper);
 			} catch (SQLException e) {
 				logger.error("A SQL error occurred while updating the file: " + serverFilePart.getName() + " in the database", e);
 				
@@ -873,12 +881,13 @@ public class ServerConnectionThread extends Thread {
 			return;
 		}
 		
-		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getOwner().toUpperCase() + "\\";
+		String root = rootUploadDir + "\\" + homeDir;
 		
 		File file = new File(root + request.getFileName());
 		
 		try {
-			FileWrapper wrapper = dbm.getFile(file.getName());
+			FileWrapper wrapper = dbm.getFile(homeDir + file.getName());
 			
 			if(wrapper == null) {
 				logger.info("The server does not have the requested file: " + request.getFileName());
