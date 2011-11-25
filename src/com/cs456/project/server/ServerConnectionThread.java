@@ -37,6 +37,8 @@ public class ServerConnectionThread extends Thread {
 	private static Logger logger = Logger.getLogger(ServerConnectionThread.class);
 	private Socket socket = null;
 	
+	private final String rootUploadDir = "upload";
+	
 	OutputStream out = null;
 	PrintWriter pw = null;
 	
@@ -76,6 +78,8 @@ public class ServerConnectionThread extends Thread {
 			logger.error("An error occurred while registering the client.", e);
 			closeClientConnection();
 			return;
+		} catch (InvalidRequestException e) {
+			logger.error("The user sent an invalid request during authentication/registration.", e);
 		}
 		
 		Request request = null;
@@ -167,7 +171,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	
-	private Credentials initiateClientConnection() throws IOException, SQLException, AuthenticationException, RegistrationException {
+	private Credentials initiateClientConnection() throws IOException, SQLException, AuthenticationException, RegistrationException, InvalidRequestException {
 		out = socket.getOutputStream();
 		pw = new PrintWriter(out);
 
@@ -194,9 +198,13 @@ public class ServerConnectionThread extends Thread {
 		return credentials;
 	}
 	
-	private Credentials authenticateClient(String line) throws SQLException, AuthenticationException {
+	private Credentials authenticateClient(String line) throws SQLException, AuthenticationException, InvalidRequestException {
 		String stringArguments = line.substring(ConnectionSettings.GREETING.length()).trim();
 		String[] arguments = stringArguments.split(" ");
+		
+		if(arguments.length != 2) {
+			throw new InvalidRequestException("The user did not provide their username and/or password", line);
+		}
 		
 		String username = arguments[0];
 		String password = arguments[1];
@@ -271,6 +279,10 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.UPLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
+			if(arguments.length != 2) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their upload request", line);
+			}
+			
 			String nameOnServer = arguments[0].trim();
 			long fileSize = Long.parseLong(arguments[1].trim());
 			
@@ -283,6 +295,9 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
+			if(arguments.length != 2) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their download request", line);
+			}
 			
 			String downloadFilename = arguments[0].trim();
 			long startPosition = Long.parseLong(arguments[1].trim());
@@ -293,6 +308,10 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.DELETE_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
+			if(arguments.length != 1) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their delete request", line);
+			}
+			
 			String filename = arguments[0];
 			
 			logger.info("The client <" + socket.getInetAddress() + "> has requested to delete file: " + filename);
@@ -302,6 +321,10 @@ public class ServerConnectionThread extends Thread {
 		else if (line != null && line.startsWith(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
+			
+			if(arguments.length != 2) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their remote download request", line);
+			}
 			
 			String url = arguments[0];
 			String serverLocation = arguments[1];
@@ -315,6 +338,10 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.PASSWORD_CHANGE_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
+			if(arguments.length != 2) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their password change request", line);
+			}
+			
 			String oldPassword = arguments[0];
 			String newPassword = arguments[1];
 			
@@ -326,6 +353,10 @@ public class ServerConnectionThread extends Thread {
 		else if(line != null && line.startsWith(ConnectionSettings.FILE_EXISTS_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.FILE_EXISTS_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
+			
+			if(arguments.length != 1) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file existance request", line);
+			}
 			
 			String file = arguments[0];
 			
@@ -342,7 +373,18 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private boolean deleteFile(DeleteRequest request) {
-		File fileToDelete = new File(request.getFileName());
+		if(request.getFileName().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to delete a file into another user's directory by using \"..\"." +
+					" The path was: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+			return false;
+		}
+		
+		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		
+		File fileToDelete = new File(root + request.getFileName());
 		
 		if(!fileToDelete.exists()) {
 			logger.error("Unable to delete the file < " + request.getFileName() + "> as the file does not exist");
@@ -369,7 +411,18 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private boolean sendFile(DownloadRequest request) throws FileNotFoundException, IOException {
-		File downloadFile = new File(request.getFileName());
+		if(request.getFileName().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to download a file into another user's directory by using \"..\"." +
+					" The path was: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+			pw.flush();
+			return false;
+		}
+		
+		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		
+		File downloadFile = new File(root + request.getFileName());
 		
 		logger.info("The client <" + socket.getInetAddress() + "> is requesting the following file: " +
 				downloadFile.getName() + " <" +  downloadFile.length() + " bytes>");
@@ -416,7 +469,7 @@ public class ServerConnectionThread extends Thread {
 		
 		fis.close();
 		
-		logger.info("The requested download file has been send in its entirety");
+		logger.info("The requested download file has been sent in its entirety");
 
 		String line = readLine(socket);
 
@@ -432,11 +485,25 @@ public class ServerConnectionThread extends Thread {
 		logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request for a file of size " + 
 				request.getFileSize() + " bytes");
 		
-		File destinationPart = new File(request.getNameOnServer() + ".part");
-		File destination = new File(request.getNameOnServer());
+		if(request.getNameOnServer().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to upload a file into another user's directory by using \"..\"." +
+					" The path was: " + request.getNameOnServer());
+			
+			pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
+			pw.flush();
+			return false;
+		}
+		
+		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		
+		File destinationPart = new File(root + request.getNameOnServer() + ".part");
+		File destination = new File(root + request.getNameOnServer());
 		
 		if(destination.exists()) {
 			logger.error("Unable to upload the file as the file already exists: " + destination.getPath());
+			
+			pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
+			pw.flush();
 			return false;
 		}
 		
@@ -475,11 +542,17 @@ public class ServerConnectionThread extends Thread {
 		if(!destinationPart.renameTo(destination)) {
 			logger.error("Although the .part file is complete, could not rename the file to remove the .part..." +
 					"please fix the problem and run the upload again, or manually remove the .part extension");
+			
+			pw.write(ConnectionSettings.UPLOAD_FAIL + " " + totalBytesRead + "\n");
+			pw.flush();
 			return false;
 		}
 
 		if (totalBytesRead != request.getFileSize()) {
 			logger.warn("Only received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the uploaded file");
+			
+			pw.write(ConnectionSettings.UPLOAD_FAIL + " " + totalBytesRead + "\n");
+			pw.flush();
 			return false;
 		}
 
@@ -492,8 +565,19 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private boolean remoteFileDownload(RemoteFileDownloadRequest request) {
-		File serverFilePart = new File(request.getServerLocation() + ".part");
-		File serverFile = new File(request.getServerLocation());
+		if(request.getServerLocation().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to remotely download a file into another user's directory by using \"..\"." +
+					" The path was: " + request.getServerLocation());
+			
+			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
+			pw.flush();
+			return false;
+		}
+		
+		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		
+		File serverFilePart = new File(root + request.getServerLocation() + ".part");
+		File serverFile = new File(root + request.getServerLocation());
 		
 		if(serverFilePart.exists()) {
 			logger.error("Unable to download file as the part file already exists < " + serverFilePart.getName() + ">");
@@ -541,9 +625,13 @@ public class ServerConnectionThread extends Thread {
 		return true;
 	}
 	
-	private void registerUser(String line) throws RegistrationException {
+	private void registerUser(String line) throws RegistrationException, InvalidRequestException {
 		String stringArguments = line.substring(ConnectionSettings.REGISTRATION_REQUEST.length()).trim();
 		String[] arguments = stringArguments.split(" ");
+		
+		if(arguments.length != 2) {
+			throw new InvalidRequestException("The user did not provide the correct number of arguments for their registration request", line);
+		}
 		
 		String username = arguments[0];
 		String password = arguments[1];
@@ -571,6 +659,19 @@ public class ServerConnectionThread extends Thread {
 		
 		pw.write(ConnectionSettings.REGISTRATION_OK + "\n");
 		pw.flush();
+		
+		logger.info("The new client: " + username + " was successfully registered");
+		
+		File directory = new File(rootUploadDir + "\\" + username.toUpperCase());
+		if(directory.exists()) {
+			logger.error("Attempted to create home directory for new user but it already exists: " + username);
+		}
+		else {
+			boolean success = directory.mkdir();
+			if(!success) {
+				logger.error("Unable to create the new user's home directory...otherwise the user is registered. <" + username.toUpperCase() + ">");
+			}
+		}
 	}
 	
 	private boolean passwordChange(PasswordChangeRequest request) {
@@ -596,11 +697,21 @@ public class ServerConnectionThread extends Thread {
 		logger.info("The user's password was successfully changed");
 		
 		return true;
-				
 	}
 	
 	private void fileExistance(FileExistanceRequest request) {
-		File file = new File(request.getFileName());
+		if(request.getFileName().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to look for a file in another user's directory by using \"..\"." +
+					" The path was: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
+			pw.flush();
+			return;
+		}
+		
+		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
+		
+		File file = new File(root + request.getFileName());
 		
 		if(file.exists()) {
 			logger.info("The server has the requested file: " + request.getFileName());

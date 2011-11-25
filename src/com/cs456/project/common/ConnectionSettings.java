@@ -4,9 +4,12 @@ public class ConnectionSettings {
 	public static final String GREETING = "HELLO";
 	public static final String UPLOAD_REQUEST = "UPLOAD";
 	public static final String UPLOAD_OK = "UPLOAD_OK";
+	public static final String UPLOAD_REJECT = "UPLOAD_REJECT";
+	public static final String UPLOAD_FAIL = "UPLOAD_FAIL";
 	public static final String UPLOAD_FINISHED = "UPLOAD_FINISHED";
 	public static final String DOWNLOAD_REQUEST = "DOWNLOAD";
 	public static final String DOWNLOAD_OK = "DOWNLOAD_OK";
+	public static final String DOWNLOAD_REJECT = "DOWNLOAD_REJECT";
 	public static final String DOWNLOAD_FINISHED = "DOWNLOAD_FINISHED";
 	public static final String DELETE_REQUEST = "DELETE_REQUEST";
 	public static final String DELETE_SUCCESS = "DELETE_SUCCESS";

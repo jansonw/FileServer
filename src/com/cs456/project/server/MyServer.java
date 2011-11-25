@@ -23,7 +23,6 @@ public class MyServer {
 			return;
 		}
 		
-		
 		try {
 			mySocket = new ServerSocket(ConnectionSettings.port);
 			mySocket.setReuseAddress(true);

@@ -6,10 +6,10 @@ import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
 
 public interface RequestInterface {
-	public void requestFileDownload(String fileLocationOnServer) 
+	public void requestFileDownload(String localFileLocation, String fileLocationOnServer) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
-	public void requestFileUpload(String fileLocation) 
+	public void requestFileUpload(String fileLocation, String serverFilename) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
 	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) 

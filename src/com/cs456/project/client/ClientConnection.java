@@ -22,7 +22,7 @@ public class ClientConnection implements RequestInterface {
 	private Socket mySocket = null;	
 	private PrintWriter pw = null;
 	
-	Credentials credentials = null;
+	private Credentials credentials = null;
 	
 	public ClientConnection(Credentials credentials) {
 		this.credentials = credentials;
@@ -33,11 +33,11 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileDownload(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileDownload(String localFileLocation, String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {	
 			openConnection();
 			initiateRequestConnection();
-			downloadFile(fileLocationOnServer);
+			downloadFile(localFileLocation, fileLocationOnServer);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -55,11 +55,11 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileUpload(String fileLocation) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileUpload(String fileLocation, String serverFilename) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
 			openConnection();
 			initiateRequestConnection();
-			uploadFile(fileLocation);
+			uploadFile(fileLocation, serverFilename);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -141,6 +141,7 @@ public class ClientConnection implements RequestInterface {
 			openConnection();
 			initiateRequestConnection();
 			changePassword(oldPassword, newPassword);
+			credentials.setPassword(newPassword);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -254,18 +255,18 @@ public class ClientConnection implements RequestInterface {
         if(ConnectionSettings.REMOTE_DOWNLOAD_ACCEPT.equals(line)) {
         	System.out.println("The remote file download was accepted");
         }
-        else {
+        else if(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE.equals(line)) {
         	System.err.println("The remote file download was rejected");
         	throw new RequestExecutionException("The server has rejected your request for the remote download." +
-        			" Please ensure you have the proper privledges and then try your request again");
+        			" Please ensure you have the proper privledges and the file dows not already exist, then try your request again");
         }	
 	}
 	
-	private void downloadFile(String filename) throws RequestExecutionException, DisconnectionException {
+	private void downloadFile(String localFilename, String serverFilename) throws RequestExecutionException, DisconnectionException {
 		System.out.println("C - Got Greeting response.. requesting download");
 		
-		File destinationPart = new File("C:\\Users\\Janson\\workspace\\FileServer\\download\\file.mp3.part");
-		File destination = new File("C:\\Users\\Janson\\workspace\\FileServer\\download\\file.mp3");
+		File destinationPart = new File(localFilename + ".part");
+		File destination = new File(localFilename);
 		
 		if(destination.exists()) {
 			System.err.println("Unable to download the file as the file already exists: " + destination.getPath());
@@ -276,14 +277,17 @@ public class ClientConnection implements RequestInterface {
 		
 		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
 		
-		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + filename + " " + partFileLength + "\n");
+		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " + partFileLength + "\n");
 		pw.flush();
 		
 		try {
 			String line = readLine(mySocket);
 			
-			if(line == null || !line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
-				System.err.println("Unable to download file: " + line);
+			if(line != null && line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
+				System.out.println("Download request was accepted");
+			}
+			else if(line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REJECT)) {
+				System.err.println("Server rejected file download");
 				throw new RequestExecutionException("The server has rejected your request to download the file.  Please ensure you have the " +
 						"proper privledges and then try again");
 			}
@@ -347,7 +351,7 @@ public class ClientConnection implements RequestInterface {
 		pw.flush();
 	}
 	
-	private void uploadFile(String filename) throws RequestExecutionException, DisconnectionException {
+	private void uploadFile(String filename, String serverFilename) throws RequestExecutionException, DisconnectionException {
 		File uploadFile = new File(filename);
 		System.out.println("C - Got Greeting response... requesting to Upload");
 
@@ -360,18 +364,19 @@ public class ClientConnection implements RequestInterface {
 					"\nPlease ensure the path to the file you provided is correct and then try your request again");
 		}
         
-        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + 
-        		"C:\\Users\\Janson\\workspace\\FileServer\\upload\\file.mp3" + " " 
-        		+ uploadFile.length() +"\n");
+        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + serverFilename + " " + uploadFile.length() +"\n");
         pw.flush();
         
         try {
 	        String line = readLine(mySocket);
 	        
-	        if(line == null || !line.startsWith(ConnectionSettings.UPLOAD_OK)) {
+	        if(line != null && line.startsWith(ConnectionSettings.UPLOAD_OK)) {
+	        	System.out.println("Got the ok from the server");
+	        }
+	        else if(line != null && line.startsWith(ConnectionSettings.UPLOAD_REJECT)) {
 	        	System.err.println("Did not get the upload ok from server: " + line);
 	        	throw new RequestExecutionException("The server has rejected your request to upload the file.  Please ensure you have" +
-	        			" the proper privledges and then try your request again");
+	        			" the proper privledges and the file dows not already exist, then try your request again");
 	        }
 	        
 	        String stringArugments = line.substring(ConnectionSettings.UPLOAD_OK.length()).trim();
@@ -415,10 +420,23 @@ public class ClientConnection implements RequestInterface {
 			
 			line = readLine(mySocket);
 			
-			if(!ConnectionSettings.UPLOAD_FINISHED.equals(line)) {
-				System.err.println("Did not receive upload finished: " + line);
-				throw new RequestExecutionException("An error has occurred on the server's side while attempting to upload the file. " +
-						" Please try your upload request again");
+			if(ConnectionSettings.UPLOAD_FINISHED.equals(line)) {
+				System.out.println("The upload was successful!");
+			}
+			else if(line != null && line.startsWith(ConnectionSettings.UPLOAD_FAIL)) {
+				String stringArguments = line.substring(ConnectionSettings.UPLOAD_FAIL.length()).trim();
+				arguments = stringArguments.split(" ");
+				
+				long amountUploaded = Long.parseLong(arguments[0].trim());
+				
+				if(amountUploaded == uploadFile.length()) {
+					throw new RequestExecutionException("An error has occurred on the server's side while attempting remove the \".part\" extension on the file. " +
+							" Please try your upload request again to resolve this issue");
+				}
+				else {
+					throw new RequestExecutionException("The server did not receive the entire file. Please upload the file again so that the server" +
+							" can continue where it left off on the upload");
+				}
 			}
         } catch(IOException e) {
         	throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
