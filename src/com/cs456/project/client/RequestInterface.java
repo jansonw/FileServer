@@ -12,7 +12,7 @@ public interface RequestInterface {
 	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
-	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) 
+	public void requestRemoteFileDownload(String urlLocation, String locationOnServer, boolean isShared) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
 	public void requestFileDeletion(String fileLocationOnServer) 

@@ -78,11 +78,11 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestRemoteFileDownload(String urlLocation, String locationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestRemoteFileDownload(String urlLocation, String locationOnServer, boolean isShared) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
 		try {
 			openConnection();
 			initiateRequestConnection();
-			remoteFileDownload(urlLocation, locationOnServer);
+			remoteFileDownload(urlLocation, locationOnServer, isShared);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -239,10 +239,10 @@ public class ClientConnection implements RequestInterface {
 		}
 	}
 	
-	private void remoteFileDownload(String url, String serverLocation) throws RequestExecutionException, DisconnectionException {
+	private void remoteFileDownload(String url, String serverLocation, boolean isShared) throws RequestExecutionException, DisconnectionException {
 		System.out.println("C - Got Greeting response... requesting to do a remote file download");
 		
-		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation +  "\n");
+		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation + " " + isShared + "\n");
         pw.flush();
         
         String line;

@@ -114,7 +114,7 @@ public class ServerConnectionThread extends Thread {
 				logger.error("An error occurred while sending the requested file", e);
 				closeClientConnection();
 				return;
-			}
+			} 
 			break;
 		case UPLOAD:
 			try {
@@ -133,11 +133,7 @@ public class ServerConnectionThread extends Thread {
 				logger.error("An error occurred while receiving the requested file", e);
 				closeClientConnection();
 				return;
-			} catch (RequestExecutionException e) {
-				logger.error(e);
-				closeClientConnection();
-				return;
-			}
+			} 
 			
 			break;
 		case DELETE:
@@ -328,17 +324,18 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 2) {
+			if(arguments.length != 3) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their remote download request", line);
 			}
 			
 			String url = arguments[0];
 			String serverLocation = arguments[1];
+			boolean isShared = FileWrapper.charToBoolean(arguments[2]);
 			
 			logger.info("The client <" + socket.getInetAddress() + "> has requested to remotely download the file: " + url +
 					" and store it here: " + serverLocation);
 			
-			request = new RemoteFileDownloadRequest(url, serverLocation, credentials);
+			request = new RemoteFileDownloadRequest(url, serverLocation, isShared, credentials);
 		}
 		else if(line != null && line.startsWith(ConnectionSettings.PASSWORD_CHANGE_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.PASSWORD_CHANGE_REQUEST.length()).trim();
@@ -401,6 +398,51 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 				
+		try {
+			FileWrapper wrapper = dbm.getFile(fileToDelete.getName());
+			
+			if(wrapper == null) {
+				logger.error("Unable to delete the file < " + request.getFileName() + "> as the file does not exist");
+				
+				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+				pw.flush();
+			}
+			
+			if(!wrapper.getOwner().equals(request.getUsername())) {
+				logger.error("The user: " + request.getUsername() + " was attempting to delete the file: " + wrapper.getFilePath() + " which is owned by: " + wrapper.getOwner());
+				
+				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+				pw.flush();
+			}
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while deleting the file: " + fileToDelete.getName(), e);
+			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+			
+			return false;
+			
+		} 	
+		
+		try {
+			dbm.deleteFile(fileToDelete.getName());
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while deleting the file: " + fileToDelete.getName(), e);
+			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+			
+			return false;
+			
+		} catch (RequestExecutionException e) {
+			logger.error("The deletion of the file record: " + fileToDelete.getName() + " failed", e);
+			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+			
+			return false;
+		}
+				
 		if (!fileToDelete.delete()) {
 			logger.error("Unable to delete the file < " + request.getFileName() + ">");
 			
@@ -429,6 +471,28 @@ public class ServerConnectionThread extends Thread {
 		String root = rootUploadDir + "\\" + request.getUsername().toUpperCase() + "\\";
 		
 		File downloadFile = new File(root + request.getFileName());
+		
+		try {
+			FileWrapper wrapper = dbm.getFile(downloadFile.getName());
+			
+			if(wrapper == null) {
+				logger.error("The file: " + downloadFile.getName() + " could not be found.");
+				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+				
+				return false;
+			}
+			
+			if(!wrapper.getOwner().equals(request.getUsername()) && !wrapper.isShared()) {
+				logger.error("The user: " + request.getUsername() + " attempted to download the file: " + downloadFile.getName() + 
+						" which is owned by: " + wrapper.getOwner() + " and is not shared");
+				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+			}
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while retrieving the file: " + downloadFile.getName() + " from the database", e);
+			return false;		
+		} 	
 		
 		logger.info("The client <" + socket.getInetAddress() + "> is requesting the following file: " +
 				downloadFile.getName() + " <" +  downloadFile.length() + " bytes>");
@@ -487,7 +551,7 @@ public class ServerConnectionThread extends Thread {
 		return true;
 	}
 	
-	private boolean receiveFile(UploadRequest request) throws FileNotFoundException, IOException, RequestExecutionException {
+	private boolean receiveFile(UploadRequest request) throws FileNotFoundException, IOException {
 		logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request for a file of size " + 
 				request.getFileSize() + " bytes");
 		
@@ -515,9 +579,6 @@ public class ServerConnectionThread extends Thread {
 		
 		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
 		
-		pw.write(ConnectionSettings.UPLOAD_OK + " " + partFileLength + "\n");
-		pw.flush();
-
 		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
 		
 		FileWrapper wrapper = new FileWrapper(destinationPart.getName(), request.getUsername(), request.isShared(), false);
@@ -526,11 +587,18 @@ public class ServerConnectionThread extends Thread {
 				dbm.addFile(wrapper);
 			} catch (SQLException e) {
 				logger.error("A SQL error occurred while adding a new file: " + wrapper.getFilePath() + " to the database", e);
-				throw new RequestExecutionException("The file upload failed");
 				
+				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+				pw.flush();
+
+				return false;				
 			} catch (RequestExecutionException e) {
 				logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
-				throw e;
+				
+				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+				pw.flush();
+				
+				return false;
 			}
 		}
 		else {
@@ -538,12 +606,23 @@ public class ServerConnectionThread extends Thread {
 				dbm.updateFile(destinationPart.getName(), wrapper);
 			} catch (SQLException e) {
 				logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
-				throw new RequestExecutionException("The file upload failed");			
+				
+				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+				pw.flush();
+
+				return false;
 			} catch (RequestExecutionException e) {
 				logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
-				throw e;
+				
+				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+				pw.flush();
+
+				return false;
 			}
 		} 
+		
+		pw.write(ConnectionSettings.UPLOAD_OK + " " + partFileLength + "\n");
+		pw.flush();
 		
 		
 		byte[] buffer = new byte[64000];
@@ -593,10 +672,18 @@ public class ServerConnectionThread extends Thread {
 			dbm.updateFile(destinationPart.getName(), wrapper);
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
-			throw new RequestExecutionException("The file upload failed");			
+			
+			pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+			pw.flush();
+
+			return false;
 		} catch (RequestExecutionException e) {
 			logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
-			throw e;
+			
+			pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+			pw.flush();
+
+			return false;
 		}		
 
 		logger.info("Received the file in its entirety");
@@ -640,6 +727,25 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
+		FileWrapper wrapper = new FileWrapper(serverFilePart.getName(), request.getUsername(), request.isShared(), false);
+		try {
+			dbm.addFile(wrapper);
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while adding a new file: " + wrapper.getFilePath() + " to the database", e);
+			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
+			pw.flush();
+			
+			return false;
+			
+		} catch (RequestExecutionException e) {
+			logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
+			
+			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
+			pw.flush();
+			
+			return false;
+		}
+		
 		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_ACCEPT + "\n");
 		pw.flush();
 		
@@ -657,6 +763,21 @@ public class ServerConnectionThread extends Thread {
 						"please manually remove the .part extension, or delete the .part file and request the remote download again");
 				return false;
 		    }
+		    
+		    wrapper = new FileWrapper(serverFile.getName(), request.getUsername(), request.isShared(), true);
+			try {
+				dbm.updateFile(serverFilePart.getName(), wrapper);
+			} catch (SQLException e) {
+				logger.error("A SQL error occurred while updating the file: " + serverFilePart.getName() + " in the database", e);
+				
+				return false;
+				
+			} catch (RequestExecutionException e) {
+				logger.error("The update of the file record: " + serverFilePart.getName() + " failed", e);
+				
+				return false;
+			}
+		    
 		} catch (MalformedURLException e) {
 			logger.error("Bad URL: " + request.getUrl(), e);
 			return false;
@@ -756,18 +877,34 @@ public class ServerConnectionThread extends Thread {
 		
 		File file = new File(root + request.getFileName());
 		
-		if(file.exists()) {
-			logger.info("The server has the requested file: " + request.getFileName());
+		try {
+			FileWrapper wrapper = dbm.getFile(file.getName());
 			
-			pw.write(ConnectionSettings.FILE_EXISTS_YES + "\n");
-		}
-		else {
-			logger.info("The server does not have the requested file: " + request.getFileName());
+			if(wrapper == null) {
+				logger.info("The server does not have the requested file: " + request.getFileName());
+				
+				pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
+			}
+			else {
+				if(!wrapper.getOwner().equals(request.getUsername()) && !wrapper.isShared()) {
+					logger.warn("The user: " + request.getUsername() + " requests the existance of a file: " + request.getFileName() + "which was: " + wrapper.getOwner() + " and was not shared");
+					
+					pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
+				}
+				else {
+					logger.info("The server has the requested file: " + request.getFileName());
+					
+					pw.write(ConnectionSettings.FILE_EXISTS_YES + "\n");
+				}
+			}
+			
+			pw.flush();
+			
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while requesting for the existance of file: " + file.getName(), e);
 			
 			pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
 		}
-		
-		pw.flush();
 	}
 	
 	private String readLine(Socket socket) throws IOException {

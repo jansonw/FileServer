@@ -104,11 +104,11 @@ public class DatabaseManager {
 				+ "' where file_path='" + lookupFilePath + "'");
 	}
 	
-	public synchronized FileWrapper getFile(String filePath) throws SQLException, RequestExecutionException {
+	public synchronized FileWrapper getFile(String filePath) throws SQLException {
 		ResultSet rs = executeQuery("Select * from Files where file_path='" + filePath + "'");
 		
 		if(!rs.next()) {
-			throw new RequestExecutionException("The file_path: " + filePath + " could not be found.");
+			return null;
 		}
 		
 		String owner = rs.getString("owner");
