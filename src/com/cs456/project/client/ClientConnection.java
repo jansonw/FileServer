@@ -181,6 +181,28 @@ public class ClientConnection implements RequestInterface {
 		}
 	}
 	
+	@Override
+	public void requestPermissionsChange(String serverFilePath, boolean newPermissions) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		try {
+			openConnection();
+			initiateRequestConnection();
+			permissionsChange(serverFilePath, newPermissions);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+	}
+	
 	private void openConnection() throws DisconnectionException {
 		try {
 			mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);
@@ -541,6 +563,30 @@ public class ClientConnection implements RequestInterface {
         else if(ConnectionSettings.FILE_EXISTS_NO.equals(line)) {
         	System.err.println("The file does not exist");
         	throw new RequestExecutionException("The file you are looking for does not exist.");
+        }
+	}
+	
+	private void permissionsChange(String serverFilePath, boolean newPermissions) throws DisconnectionException, RequestExecutionException {
+		System.out.println("C - Got Greeting response... requesting file permission change");
+		
+		pw.write(ConnectionSettings.PERMISSION_CHANGE_REQUEST + " " + serverFilePath + " " + FileWrapper.booleanToChar(newPermissions) + "\n");
+        pw.flush();
+        
+        String line;
+		try {
+			line = readLine(mySocket);
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your file permission change request again");
+		}
+        
+        if(ConnectionSettings.PERMISSION_CHANGE_SUCCESS.equals(line)) {
+        	System.out.println("The permission change was successful");
+        }
+        else if(ConnectionSettings.PERMISSION_CHANGE_FAIL.equals(line)) {
+        	System.err.println("The permission change was not successful");
+        	throw new RequestExecutionException("The file permission change you requested failed.   Please ensure you have" +
+	        			" the proper privledges and the file dows not already exist, then try your request again");
         }
 	}
 	

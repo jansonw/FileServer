@@ -26,4 +26,7 @@ public interface RequestInterface {
 	
 	public void requestFileExistance(String serverFilePath, String owner) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
+	
+	public void requestPermissionsChange(String serverFilePath, boolean newPermissions) 
+			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 }

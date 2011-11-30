@@ -20,15 +20,16 @@ public class MyClient {
 //			cc.setCredentials(new Credentials("tEsT1", "password"));
 //			cc.requestPasswordChange("password", "newPassword");
 			
-//			cc.setCredentials(new Credentials("janson", "abc123"));
-			cc.setCredentials(new Credentials("test1", "newPassword"));
+			cc.setCredentials(new Credentials("janson", "abc123"));
+//			cc.setCredentials(new Credentials("test1", "newPassword"));
 			
-			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "file1.mp3", true);
+//			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "file1.mp3", true);
 //			cc.requestFileExistance("file1.mp3", "test1");
 //			cc.requestFileDownload("download\\file3.mp3", "file1.mp3", "janson");
 //			cc.requestFileDeletion("file1.mp3");
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "npp.5.9.6.2.Installer.exe", false);
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
+			cc.requestPermissionsChange("file1.mp3", false);
 
 		} catch (DisconnectionException e) {
 			// TODO Auto-generated catch block

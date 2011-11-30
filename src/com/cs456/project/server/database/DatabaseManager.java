@@ -104,6 +104,17 @@ public class DatabaseManager {
 				+ "' where upper(file_path)=upper('" + lookupFilePath + "')");
 	}
 	
+	public synchronized void updatePermissions(FileWrapper wrapper) throws SQLException, RequestExecutionException {
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y'");
+		
+		if(!rs.next()) {
+			throw new RequestExecutionException("The file_path: " + wrapper.getFilePath() + " does not exist for owner: " + wrapper.getOwner().toUpperCase() + " that is complete");
+		}
+		
+		executeQuery("Update Files " + "set shared='" + FileWrapper.booleanToChar(wrapper.isShared())
+				+ "' where upper(file_path)=upper('" +  wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete = 'Y'");
+	}
+	
 	public synchronized FileWrapper getFile(String filePath) throws SQLException {
 		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + filePath + "')");
 		

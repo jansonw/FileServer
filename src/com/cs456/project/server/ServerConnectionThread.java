@@ -30,6 +30,7 @@ import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
 import com.cs456.project.server.requests.FileExistanceRequest;
 import com.cs456.project.server.requests.PasswordChangeRequest;
+import com.cs456.project.server.requests.PermissionChangeRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
 import com.cs456.project.server.requests.Request;
 import com.cs456.project.server.requests.UploadRequest;
@@ -165,6 +166,9 @@ public class ServerConnectionThread extends Thread {
 			break;
 		case FILE_EXISTANCE:
 			fileExistance((FileExistanceRequest)request);
+			break;
+		case PERMISSION_CHANGE:
+			permissionChange((PermissionChangeRequest)request);
 			break;
 		}
 		
@@ -365,9 +369,24 @@ public class ServerConnectionThread extends Thread {
 			String file = arguments[0];
 			String owner = arguments[1];
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has ask whether the file: " + file + "exists on the server");
+			logger.info("The client <" + socket.getInetAddress() + "> has asked whether the file: " + file + " exists on the server");
 			
 			request = new FileExistanceRequest(file, owner, credentials);
+		}
+		else if(line != null && line.startsWith(ConnectionSettings.PERMISSION_CHANGE_REQUEST)) {
+			String stringArguments = line.substring(ConnectionSettings.PERMISSION_CHANGE_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			if(arguments.length != 2) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file existance permission change", line);
+			}
+			
+			String file = arguments[0];
+			boolean newPermissions = FileWrapper.charToBoolean(arguments[1]);
+			
+			logger.info("The client <" + socket.getInetAddress() + "> has requested to thange the file's: " + file + " permission to: " + arguments[1]);
+			
+			request = new PermissionChangeRequest(file, newPermissions, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -913,6 +932,42 @@ public class ServerConnectionThread extends Thread {
 			logger.error("A SQL error occurred while requesting for the existance of file: " + file.getName(), e);
 			
 			pw.write(ConnectionSettings.FILE_EXISTS_NO + "\n");
+			pw.flush();
+		}
+	}
+	
+	private void permissionChange(PermissionChangeRequest request) {
+		if(request.getFileName().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " is trying to look for a file in another user's directory by using \"..\"." +
+					" The path was: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
+			pw.flush();
+			return;
+		}
+		
+		String homeDir = request.getUsername().toUpperCase() + "\\";
+				
+		FileWrapper wrapper = new FileWrapper(homeDir + request.getFileName(), request.getUsername(), request.isShared(), true);
+		
+		try {
+			dbm.updatePermissions(wrapper);
+			
+			logger.info("The change of permissions to: " + request.isShared() + " was successful for file: " + request.getFileName());
+			
+			pw.write(ConnectionSettings.PERMISSION_CHANGE_SUCCESS + "\n");
+			pw.flush();
+			
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while requesting a change of permissions for the file: " + request.getFileName(), e);
+			
+			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
+			pw.flush();
+		} catch (RequestExecutionException e) {
+			logger.error("The change of permissions request was rejected by the database for file: " + request.getFileName(), e);
+			
+			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
+			pw.flush();
 		}
 	}
 	
