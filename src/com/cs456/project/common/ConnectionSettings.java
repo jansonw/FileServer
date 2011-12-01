@@ -31,6 +31,9 @@ public class ConnectionSettings {
 	public static final String FILE_EXISTS_NO = "FILE_EXISTS_NO";
 	public static final String PERMISSION_CHANGE_REQUEST = "PERMISSION_CHANGE_REQUEST";
 	public static final String PERMISSION_CHANGE_FAIL = "PERMISSION_CHANGE_FAIL";
+	public static final String FILE_LIST_REQUEST = "FILE_LIST_REQUEST";
+	public static final String FILE_LIST_FAIL = "FILE_LIST_FAIL";
+	public static final String FILE_LIST_SUCCESS = "FILE_LIST_SUCCESS";
 
 	public static final String hostname = "localhost";
 	public static final String PERMISSION_CHANGE_SUCCESS = "PERMISSION_CHANGE_SUCCESS";

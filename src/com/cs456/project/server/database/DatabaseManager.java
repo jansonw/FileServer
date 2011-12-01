@@ -4,9 +4,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import com.cs456.project.common.FileListObject;
 import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.RequestExecutionException;
 
@@ -128,6 +131,21 @@ public class DatabaseManager {
 		
 		
 		return new FileWrapper(filePath, owner, isShared, isComplete);
+	}
+	
+	public synchronized List<FileListObject> getFileList(String rootPath, String owner) throws SQLException {
+		ResultSet rs = executeQuery("Select file_path from Files where " +
+				"upper(file_path) LIKE upper('" + rootPath + "%') " +
+				"and (owner=upper('" + owner + "') or shared='Y') " +
+				"and complete='Y'");
+		
+		List<FileListObject> fileList = new ArrayList<FileListObject>();
+		
+		while(rs.next()) {
+			fileList.add(new FileListObject(rs.getString("file_path"), rootPath));
+		}
+
+		return fileList;
 	}
 	
 	public synchronized ResultSet executeQuery(String query) throws SQLException {

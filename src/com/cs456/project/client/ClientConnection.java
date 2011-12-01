@@ -6,13 +6,17 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileListObject;
 import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
@@ -201,6 +205,32 @@ public class ClientConnection implements RequestInterface {
 			closeConnection();			
 			throw e;
 		}
+	}
+	
+	@Override
+	public List<FileListObject> getFileList(String rootPath) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		List<FileListObject> fileList = null;
+		
+		try {
+			openConnection();
+			initiateRequestConnection();
+			fileList = fileList(rootPath);
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestExecutionException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+		
+		return fileList;
 	}
 	
 	private void openConnection() throws DisconnectionException {
@@ -586,8 +616,63 @@ public class ClientConnection implements RequestInterface {
         else if(ConnectionSettings.PERMISSION_CHANGE_FAIL.equals(line)) {
         	System.err.println("The permission change was not successful");
         	throw new RequestExecutionException("The file permission change you requested failed.   Please ensure you have" +
-	        			" the proper privledges and the file dows not already exist, then try your request again");
+	        			" the proper privledges and the file does not already exist, then try your request again");
         }
+	}
+	
+	private List<FileListObject> fileList(String rootPath) throws DisconnectionException, RequestExecutionException {
+		System.out.println("C - Got Greeting response... requesting file list");
+		
+		pw.write(ConnectionSettings.FILE_LIST_REQUEST + " " + rootPath + "\n");
+        pw.flush();
+        
+        String line;
+        List<FileListObject> fileList = new ArrayList<FileListObject>();
+		try {
+			line = readLine(mySocket);
+		        
+	        if(line != null && line.startsWith(ConnectionSettings.FILE_LIST_SUCCESS)) {
+	        	String stringArguments = line.substring(ConnectionSettings.FILE_LIST_SUCCESS.length()).trim();
+				String[] arguments = stringArguments.split(" ");
+				
+				if(arguments.length != 1) {
+					throw new RequestExecutionException("The server did not provide the required information for the file list retrieval.  Please contact customer support regarding this issue.");
+				}
+				
+				int numFiles = Integer.parseInt(arguments[0].trim());
+				
+				System.out.println("The file list request was accepted and there are " + numFiles + " files to be retrieved");
+				
+				int numReceived = 0;
+				
+				ObjectInputStream ois = new ObjectInputStream(mySocket.getInputStream());
+				
+				
+				while(true) {
+					if(numReceived == numFiles) break;
+					fileList.add((FileListObject)ois.readObject());
+					
+					numReceived++;
+				}
+				
+				if(numReceived != numFiles) {
+					throw new RequestExecutionException("Did not receive all entries for the file list request." +
+							"Please ensure you have a stable internet connection and then try your request again");
+				}
+	        }
+	        else if(ConnectionSettings.FILE_LIST_FAIL.equals(line)) {
+	        	System.err.println("The file list request was not successful");
+	        	throw new RequestExecutionException("The file list request failed.   Please ensure you have" +
+		        			" the proper privledges then try your request again");
+	        }
+		} catch (IOException e) {
+			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
+					" to the internet and then try your file list request again");
+		} catch (ClassNotFoundException e) {
+			throw new RequestExecutionException("The file list request failed due to missing classes.  Please contact customer support");
+		}
+		
+		return fileList;
 	}
 	
 	private String readLine(Socket socket) throws IOException {

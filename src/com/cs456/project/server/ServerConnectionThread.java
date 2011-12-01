@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
@@ -15,11 +16,13 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
 import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileListObject;
 import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.InvalidRequestException;
@@ -29,6 +32,7 @@ import com.cs456.project.server.database.DatabaseManager;
 import com.cs456.project.server.requests.DeleteRequest;
 import com.cs456.project.server.requests.DownloadRequest;
 import com.cs456.project.server.requests.FileExistanceRequest;
+import com.cs456.project.server.requests.FileListRequest;
 import com.cs456.project.server.requests.PasswordChangeRequest;
 import com.cs456.project.server.requests.PermissionChangeRequest;
 import com.cs456.project.server.requests.RemoteFileDownloadRequest;
@@ -169,6 +173,9 @@ public class ServerConnectionThread extends Thread {
 			break;
 		case PERMISSION_CHANGE:
 			permissionChange((PermissionChangeRequest)request);
+			break;
+		case FILE_LIST:
+			fileList((FileListRequest)request);
 			break;
 		}
 		
@@ -387,6 +394,24 @@ public class ServerConnectionThread extends Thread {
 			logger.info("The client <" + socket.getInetAddress() + "> has requested to thange the file's: " + file + " permission to: " + arguments[1]);
 			
 			request = new PermissionChangeRequest(file, newPermissions, credentials);
+		}
+		else if(line != null && line.startsWith(ConnectionSettings.FILE_LIST_REQUEST)) {
+			String stringArguments = line.substring(ConnectionSettings.FILE_LIST_REQUEST.length()).trim();
+			String[] arguments = stringArguments.split(" ");
+			
+			if(arguments.length != 1) {
+				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file list request", line);
+			}
+			
+			String rootPath = arguments[0];
+			
+			if(!rootPath.endsWith("\\")) {
+				rootPath += "\\";
+			}
+			
+			logger.info("The client <" + socket.getInetAddress() + "> has requested to get the file list from root path: " + rootPath);
+			
+			request = new FileListRequest(rootPath, credentials);
 		}
 		else {
 			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
@@ -607,7 +632,7 @@ public class ServerConnectionThread extends Thread {
 		
 		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
 		
-		FileWrapper wrapper = new FileWrapper(homeDir + destinationPart.getName(), request.getUsername(), request.isShared(), false);
+		FileWrapper wrapper = new FileWrapper(homeDir + request.getNameOnServer() + ".part", request.getUsername(), request.isShared(), false);
 		if(partFileLength == 0) {
 			try {
 				dbm.addFile(wrapper);
@@ -629,7 +654,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		else {
 			try {
-				dbm.updateFile(homeDir + destinationPart.getName(), wrapper);
+				dbm.updateFile(wrapper.getFilePath(), wrapper);
 			} catch (SQLException e) {
 				logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
 				
@@ -693,9 +718,9 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		wrapper = new FileWrapper(homeDir + destination.getName(), request.getUsername(), request.isShared(), true);
+		wrapper = new FileWrapper(homeDir + request.getNameOnServer(), request.getUsername(), request.isShared(), true);
 		try {
-			dbm.updateFile(homeDir + destinationPart.getName(), wrapper);
+			dbm.updateFile(wrapper.getFilePath() + ".part", wrapper);
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
 			
@@ -969,6 +994,42 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
 			pw.flush();
 		}
+	}
+	
+	private void fileList(FileListRequest request) {
+		if(request.getRootPath().contains("..")) {
+			logger.warn("User: " + request.getUsername() + " provided a root path in another user's directory by using \"..\"." +
+					" The path was: " + request.getRootPath());
+			
+			pw.write(ConnectionSettings.FILE_LIST_FAIL + "\n");
+			pw.flush();
+			return;
+		}
+			
+		try {
+			List<FileListObject> fileList = dbm.getFileList(request.getRootPath(), request.getUsername());
+			
+			logger.info("The file list retrieval for the root directory: " + request.getRootPath() + " for user " + request.getUsername());
+						
+			pw.write(ConnectionSettings.FILE_LIST_SUCCESS + " " + fileList.size() + "\n");
+			pw.flush();
+			
+			try {
+				ObjectOutputStream oos = new ObjectOutputStream(out);
+				
+				for(FileListObject file : fileList) {
+					oos.writeObject(file);
+					oos.flush();
+				}
+				
+				oos.close();
+			} catch(IOException e) {}
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while retrieving the file list for the root directory: " + request.getRootPath() + " for user: " + request.getUsername(), e);
+			
+			pw.write(ConnectionSettings.FILE_LIST_FAIL + "\n");
+			pw.flush();
+		} 
 	}
 	
 	private String readLine(Socket socket) throws IOException {

@@ -1,6 +1,9 @@
 package com.cs456.project.client;
 
+import java.util.List;
+
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileListObject;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
@@ -23,13 +26,18 @@ public class MyClient {
 			cc.setCredentials(new Credentials("janson", "abc123"));
 //			cc.setCredentials(new Credentials("test1", "newPassword"));
 			
-//			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "file1.mp3", true);
+//			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "folder\\file1.mp3", true);
 //			cc.requestFileExistance("file1.mp3", "test1");
 //			cc.requestFileDownload("download\\file3.mp3", "file1.mp3", "janson");
 //			cc.requestFileDeletion("file1.mp3");
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "npp.5.9.6.2.Installer.exe", false);
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
-			cc.requestPermissionsChange("file1.mp3", false);
+//			cc.requestPermissionsChange("file1.mp3", false);
+			List<FileListObject> fileList = cc.getFileList("test1");
+			
+			for(FileListObject o : fileList) {
+				System.out.println(o.getDisplayName() + "\tis_directory: " + o.isDirectory());
+			}
 
 		} catch (DisconnectionException e) {
 			// TODO Auto-generated catch block
