@@ -1,8 +1,9 @@
 package com.cs456.project.common;
 
 import java.io.Serializable;
+import java.util.Comparator;
 
-public class FileListObject implements Serializable {
+public class FileListObject implements Serializable, Comparable<FileListObject> {
 	private String displayName;
 	private boolean isDirectory;
 
@@ -40,6 +41,11 @@ public class FileListObject implements Serializable {
 	@Override
 	public int hashCode() {
 		return displayName.hashCode();
+	}
+
+	@Override
+	public int compareTo(FileListObject o) {
+		return displayName.compareTo(o.displayName);
 	}
 	
 }

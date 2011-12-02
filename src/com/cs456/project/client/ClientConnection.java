@@ -16,6 +16,7 @@ import java.util.List;
 
 import com.cs456.project.common.ConnectionSettings;
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileListManager;
 import com.cs456.project.common.FileListObject;
 import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
@@ -208,13 +209,13 @@ public class ClientConnection implements RequestInterface {
 	}
 	
 	@Override
-	public List<FileListObject> getFileList(String rootPath) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
-		List<FileListObject> fileList = null;
+	public FileListManager getFileList(String rootPath) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		FileListManager fileListManager = null;
 		
 		try {
 			openConnection();
 			initiateRequestConnection();
-			fileList = fileList(rootPath);
+			fileListManager = fileList(rootPath);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -230,7 +231,7 @@ public class ClientConnection implements RequestInterface {
 			throw e;
 		}
 		
-		return fileList;
+		return fileListManager;
 	}
 	
 	private void openConnection() throws DisconnectionException {
@@ -620,7 +621,7 @@ public class ClientConnection implements RequestInterface {
         }
 	}
 	
-	private List<FileListObject> fileList(String rootPath) throws DisconnectionException, RequestExecutionException {
+	private FileListManager fileList(String rootPath) throws DisconnectionException, RequestExecutionException {
 		System.out.println("C - Got Greeting response... requesting file list");
 		
 		pw.write(ConnectionSettings.FILE_LIST_REQUEST + " " + rootPath + "\n");
@@ -628,6 +629,7 @@ public class ClientConnection implements RequestInterface {
         
         String line;
         List<FileListObject> fileList = new ArrayList<FileListObject>();
+        
 		try {
 			line = readLine(mySocket);
 		        
@@ -672,7 +674,7 @@ public class ClientConnection implements RequestInterface {
 			throw new RequestExecutionException("The file list request failed due to missing classes.  Please contact customer support");
 		}
 		
-		return fileList;
+		return new FileListManager(fileList);
 	}
 	
 	private String readLine(Socket socket) throws IOException {

@@ -3,6 +3,7 @@ package com.cs456.project.client;
 import java.util.List;
 
 import com.cs456.project.common.Credentials;
+import com.cs456.project.common.FileListManager;
 import com.cs456.project.common.FileListObject;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
@@ -33,9 +34,9 @@ public class MyClient {
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "npp.5.9.6.2.Installer.exe", false);
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
 //			cc.requestPermissionsChange("file1.mp3", false);
-			List<FileListObject> fileList = cc.getFileList("janson");
+			FileListManager fileListManager = cc.getFileList("janson");
 			
-			for(FileListObject o : fileList) {
+			for(FileListObject o : fileListManager.getAll(true)) {
 				System.out.println(o.getDisplayName() + "\tis_directory: " + o.isDirectory());
 			}
 

@@ -1,8 +1,6 @@
 package com.cs456.project.client;
 
-import java.util.List;
-
-import com.cs456.project.common.FileListObject;
+import com.cs456.project.common.FileListManager;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
@@ -33,6 +31,6 @@ public interface RequestInterface {
 	public void requestPermissionsChange(String serverFilePath, boolean newPermissions) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 	
-	public List<FileListObject> getFileList(String rootPath) 
+	public FileListManager getFileList(String rootPath) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 }
