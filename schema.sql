@@ -1,5 +1,5 @@
 --------------------------------------------------------
---  File created - Wednesday-November-30-2011   
+--  File created - Friday-December-02-2011   
 --------------------------------------------------------
 --------------------------------------------------------
 --  DDL for Table FILES
@@ -9,7 +9,8 @@
    (	"FILE_PATH" VARCHAR2(4000 BYTE), 
 	"OWNER" VARCHAR2(20 BYTE), 
 	"SHARED" VARCHAR2(1 BYTE), 
-	"COMPLETE" VARCHAR2(1 BYTE)
+	"COMPLETE" VARCHAR2(1 BYTE), 
+	"MARKED_FOR_DELETION" VARCHAR2(1 BYTE)
    ) SEGMENT CREATION IMMEDIATE 
   PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
   STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
@@ -59,6 +60,7 @@
   PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
   TABLESPACE "SYSTEM"  ENABLE;
   ALTER TABLE "JANSON"."FILES" MODIFY ("SHARED" NOT NULL ENABLE);
+  ALTER TABLE "JANSON"."FILES" MODIFY ("MARKED_FOR_DELETION" NOT NULL ENABLE);
   ALTER TABLE "JANSON"."FILES" MODIFY ("FILE_PATH" NOT NULL ENABLE);
 --------------------------------------------------------
 --  Constraints for Table USERS

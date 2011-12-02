@@ -2,7 +2,6 @@ package com.cs456.project.server;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -103,42 +102,23 @@ public class ServerConnectionThread extends Thread {
 					
 		switch(request.getRequestType()) {
 		case DOWNLOAD:
-			try {
-				boolean success = sendFile((DownloadRequest)request);
-				
-				if(!success) {
-					logger.error("Sending the requested file to the client was not successful");
-					closeClientConnection();
-					return;
-				}					
-			} catch (FileNotFoundException e) {
-				logger.error("The file requested to be downloaded could not be found", e);
+			boolean downloadSuccess = sendFile((DownloadRequest)request);
+			
+			if(!downloadSuccess) {
+				logger.error("Sending the requested file to the client was not successful");
 				closeClientConnection();
 				return;
-			} catch (IOException e) {
-				logger.error("An error occurred while sending the requested file", e);
-				closeClientConnection();
-				return;
-			} 
+			}
+			
 			break;
 		case UPLOAD:
-			try {
-				boolean success = receiveFile((UploadRequest)request);
-				
-				if(!success) {
-					logger.error("Did not receive the entire file being uploaded.  The client must reconnect and send the rest of it.");
-					closeClientConnection();
-					return;
-				}
-			} catch (FileNotFoundException e) {
-				logger.error("Could not create the requested file on the server", e);
+			boolean uploadSuccess = receiveFile((UploadRequest)request);
+			
+			if(!uploadSuccess) {
+				logger.error("Did not receive the entire file being uploaded.  The client must reconnect and send the rest of it.");
 				closeClientConnection();
 				return;
-			} catch (IOException e) {
-				logger.error("An error occurred while receiving the requested file", e);
-				closeClientConnection();
-				return;
-			} 
+			}
 			
 			break;
 		case DELETE:
@@ -252,9 +232,6 @@ public class ServerConnectionThread extends Thread {
 		    			
 			throw new AuthenticationException("The username/password combination was not found in the database", username, password, false);
 		}
-		
-		
-		
 		
 		boolean isLocked = "Y".equals(rs.getString("is_locked"));
 		
@@ -431,25 +408,15 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\" + request.getFileName();
 		String root = rootUploadDir + "\\" + homeDir;
 		
-		File fileToDelete = new File(root + request.getFileName());
-		
-		if(!fileToDelete.exists()) {
-			logger.error("Unable to delete the file < " + request.getFileName() + "> as the file does not exist");
-			
-			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
-			pw.flush();
-			
-			return false;
-		}
-				
+		FileWrapper wrapper;
 		try {
-			FileWrapper wrapper = dbm.getFile(homeDir + fileToDelete.getName());
+			wrapper = dbm.getFile(homeDir, false);
 			
 			if(wrapper == null) {
-				logger.error("Unable to delete the file < " + homeDir + request.getFileName() + "> as the file does not exist");
+				logger.error("Unable to delete the file < " + homeDir + "> as the file does not exist");
 				
 				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 				pw.flush();
@@ -462,19 +429,32 @@ public class ServerConnectionThread extends Thread {
 				pw.flush();
 			}
 		} catch (SQLException e) {
-			logger.error("A SQL error occurred while deleting the file: " + fileToDelete.getName(), e);
+			logger.error("A SQL error occurred while deleting the file: " + homeDir, e);
 			
 			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 			pw.flush();
 			
 			return false;
 			
-		} 	
+		}
+		
+		File fileToDelete = new File(root);
+		
+		if(!fileToDelete.exists()) {
+			logger.error("Unable to delete the file < " + homeDir + "> as the file does not exist");
+			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+			
+			return false;
+		}
+		
 		
 		try {
-			dbm.deleteFile(homeDir + fileToDelete.getName());
+			FileWrapper deleteWrapper = new FileWrapper(wrapper.getFilePath(), wrapper.getOwner(), wrapper.isShared(), wrapper.isComplete(), true);
+			dbm.updateFile(deleteWrapper.getFilePath(), deleteWrapper);
 		} catch (SQLException e) {
-			logger.error("A SQL error occurred while deleting the file: " + fileToDelete.getName(), e);
+			logger.error("A SQL error occurred while deleting the file: " + homeDir, e);
 			
 			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 			pw.flush();
@@ -482,30 +462,42 @@ public class ServerConnectionThread extends Thread {
 			return false;
 			
 		} catch (RequestExecutionException e) {
-			logger.error("The deletion of the file record: " + fileToDelete.getName() + " failed", e);
+			logger.error("The update of the file record: " + homeDir + " failed", e);
 			
+			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+			pw.flush();
+
+			return false;
+		}
+		
+		
+				
+		boolean safeToDelete = FileManager.getInstance().markForDeletion(homeDir);
+		
+		if(!safeToDelete) {
+			pw.write(ConnectionSettings.DELETE_DELAYED + "\n");
+			pw.flush();
+			
+			return true;
+		}
+		
+		boolean success = purgeDeleted(homeDir);
+		
+		if(success) {
+			pw.write(ConnectionSettings.DELETE_SUCCESS + "\n");
+			pw.flush();
+			
+			return true;
+		}
+		else {
 			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 			pw.flush();
 			
 			return false;
 		}
-				
-		if (!fileToDelete.delete()) {
-			logger.error("Unable to delete the file < " + request.getFileName() + ">");
-			
-			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
-			pw.flush();
-			
-		    return false;
-		}
-		
-		pw.write(ConnectionSettings.DELETE_SUCCESS + "\n");
-		pw.flush();
-		
-		return true;
 	}
 	
-	private boolean sendFile(DownloadRequest request) throws FileNotFoundException, IOException {
+	private boolean sendFile(DownloadRequest request) {
 		if(request.getFileName().contains("..")) {
 			logger.warn("User: " + request.getUsername() + " is trying to download a file into another user's directory by using \"..\"." +
 					" The path was: " + request.getFileName());
@@ -515,16 +507,16 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String homeDir = request.getOwner().toUpperCase() + "\\";
-		String root = rootUploadDir + "\\" + homeDir + "\\";
+		String homePath = request.getOwner().toUpperCase() + "\\" + request.getFileName();
+		String rootPath = rootUploadDir + "\\" + homePath;
 		
-		File downloadFile = new File(root + request.getFileName());
+		File downloadFile = new File(rootPath);
 		
 		try {
-			FileWrapper wrapper = dbm.getFile(homeDir + downloadFile.getName());
+			FileWrapper wrapper = dbm.getFile(homePath, false);
 			
 			if(wrapper == null) {
-				logger.error("The file: " + downloadFile.getPath() + " could not be found.");
+				logger.error("The file: " + homePath + " could not be found.");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
 				
@@ -532,76 +524,109 @@ public class ServerConnectionThread extends Thread {
 			}
 			
 			if(!wrapper.getOwner().equals(request.getUsername()) && !wrapper.isShared()) {
-				logger.error("The user: " + request.getUsername() + " attempted to download the file: " + downloadFile.getName() + 
+				logger.error("The user: " + request.getUsername() + " attempted to download the file: " + homePath + 
 						" which is owned by: " + wrapper.getOwner() + " and is not shared");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
 				
 				return false;
 			}
+			
 		} catch (SQLException e) {
-			logger.error("A SQL error occurred while retrieving the file: " + downloadFile.getName() + " from the database", e);
+			logger.error("A SQL error occurred while retrieving the file: " + homePath + " from the database", e);
 			return false;		
 		} 	
 		
 		logger.info("The client <" + socket.getInetAddress() + "> is requesting the following file: " +
-				downloadFile.getName() + " <" +  downloadFile.length() + " bytes>");
+				homePath + " <" +  downloadFile.length() + " bytes>");
 
 		FileInputStream fis = null;
 		
-		fis = new FileInputStream(downloadFile);
-		logger.warn("Unable to read the file");
+		boolean safeToDownload = FileManager.getInstance().incrementFileInUse(homePath);
 		
-
-		logger.info("Telling the client <" + socket.getInetAddress() + "> that their download request is going to be serviced");
-
-		pw.write(ConnectionSettings.DOWNLOAD_OK + " " + downloadFile.length() + "\n");
-		pw.flush();
-
-		byte[] buffer = new byte[64000];
-
-		boolean readPartFile = request.getStartPosition() != 0;
-		
-		long totalBytesRead = 0;
-		
-		while (true) {
-			int numBytesRead = 0;
-			numBytesRead = fis.read(buffer);
-			if (numBytesRead == -1)	break;
+		if(!safeToDownload) {
+			logger.info("The file: " + homePath + " the user: " + request.getUsername() + " requested has been deleted.");
 			
-			totalBytesRead += numBytesRead;
-
-			if(readPartFile) {
-				if(totalBytesRead > request.getStartPosition()) {
-					int numBytesLeft = (int)(request.getStartPosition() % 64000);
-					out.write(buffer, numBytesLeft, numBytesRead - numBytesLeft);
-					out.flush();
-					readPartFile = false;
-				}
-			}
-			else {
-				out.write(buffer, 0, numBytesRead);
-				out.flush();
-			}
+			pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+			pw.flush();
 			
-			logger.debug("Sent " + totalBytesRead + "/" + downloadFile.length() + " bytes");
+			return false;
 		}
 		
-		fis.close();
-		
-		logger.info("The requested download file has been sent in its entirety");
+		try {
+			fis = new FileInputStream(downloadFile);
+			logger.info("Telling the client <" + socket.getInetAddress() + "> that their download request is going to be serviced");
+	
+			pw.write(ConnectionSettings.DOWNLOAD_OK + " " + downloadFile.length() + "\n");
+			pw.flush();
+	
+			byte[] buffer = new byte[64000];
+	
+			boolean readPartFile = request.getStartPosition() != 0;
+			
+			long totalBytesRead = 0;
+			
+			while (true) {
+				int numBytesRead = 0;
+				numBytesRead = fis.read(buffer);
+				if (numBytesRead == -1)	break;
+				
+				totalBytesRead += numBytesRead;
+	
+				if(readPartFile) {
+					if(totalBytesRead > request.getStartPosition()) {
+						int numBytesLeft = (int)(request.getStartPosition() % 64000);
+						out.write(buffer, numBytesLeft, numBytesRead - numBytesLeft);
+						out.flush();
+						readPartFile = false;
+					}
+				}
+				else {
+					out.write(buffer, 0, numBytesRead);
+					out.flush();
+				}
+				
+				logger.debug("Sent " + totalBytesRead + "/" + downloadFile.length() + " bytes");
+			}
 
-		String line = readLine(socket);
+			fis.close();
 
-		if (!ConnectionSettings.DOWNLOAD_FINISHED.equals(line)) {
-			logger.warn("The client did not send the download finished message.  It sent: <" + line + ">");
+			logger.info("The requested download file: " + homePath
+					+ " has been sent in its entirety");
+
+			String line = readLine(socket);
+
+			if (!ConnectionSettings.DOWNLOAD_FINISHED.equals(line)) {
+				logger.warn("The client did not send the download finished message.  It sent: <" + line + ">");
+				boolean deletionRequired = FileManager.getInstance().decrementFileInUse(homePath);
+				
+				if(deletionRequired) {
+					purgeDeleted(homePath);
+				}
+				
+				return false;
+			}
+		} catch(IOException e) {
+			logger.error("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
+			boolean deletionRequired = FileManager.getInstance().decrementFileInUse(homePath);
+			
+			if(deletionRequired) {
+				purgeDeleted(homePath);
+			}
+			
 			return false;
+		}
+		
+		boolean deletionRequired = FileManager.getInstance().decrementFileInUse(homePath);
+		
+		if(deletionRequired) {
+			purgeDeleted(homePath);
 		}
 		
 		return true;
 	}
 	
-	private boolean receiveFile(UploadRequest request) throws FileNotFoundException, IOException {
+	private boolean receiveFile(UploadRequest request) {
 		logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request for a file of size " + 
 				request.getFileSize() + " bytes");
 		
@@ -614,14 +639,14 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String homeDir = request.getUsername().toUpperCase() + "\\";
-		String root = rootUploadDir + "\\" + homeDir;
+		String homePath = request.getUsername().toUpperCase() + "\\" + request.getNameOnServer();
+		String rootPath = rootUploadDir + "\\" + homePath;
 		
-		File destinationPart = new File(root + request.getNameOnServer() + ".part");
-		File destination = new File(root + request.getNameOnServer());
+		File destinationPart = new File(rootPath + ".part");
+		File destination = new File(rootPath);
 		
 		if(destination.exists()) {
-			logger.error("Unable to upload the file as the file already exists: " + destination.getPath());
+			logger.error("Unable to upload the file as the file already exists: " + homePath);
 			
 			pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
 			pw.flush();
@@ -629,83 +654,89 @@ public class ServerConnectionThread extends Thread {
 		}
 		
 		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
-		
-		FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
-		
-		FileWrapper wrapper = new FileWrapper(homeDir + request.getNameOnServer() + ".part", request.getUsername(), request.isShared(), false);
-		if(partFileLength == 0) {
-			try {
-				dbm.addFile(wrapper);
-			} catch (SQLException e) {
-				logger.error("A SQL error occurred while adding a new file: " + wrapper.getFilePath() + " to the database", e);
-				
-				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
-				pw.flush();
-
-				return false;				
-			} catch (RequestExecutionException e) {
-				logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
-				
-				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
-				pw.flush();
-				
-				return false;
-			}
-		}
-		else {
-			try {
-				dbm.updateFile(wrapper.getFilePath(), wrapper);
-			} catch (SQLException e) {
-				logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
-				
-				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
-				pw.flush();
-
-				return false;
-			} catch (RequestExecutionException e) {
-				logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
-				
-				pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
-				pw.flush();
-
-				return false;
-			}
-		} 
-		
-		pw.write(ConnectionSettings.UPLOAD_OK + " " + partFileLength + "\n");
-		pw.flush();
-		
-		
-		byte[] buffer = new byte[64000];
 		long totalBytesRead = partFileLength;
-
-		InputStream inFile = socket.getInputStream();
-
-		logger.info("Starting the upload of the file");
-
-		while (true) {
-			if (totalBytesRead == request.getFileSize())
-				break;
-			
-			int numBytesRead = inFile.read(buffer);
-			if (numBytesRead == -1)
-				break;
-			
-			fileOut.write(buffer, 0, numBytesRead);
-			fileOut.flush();
-
-			totalBytesRead += numBytesRead;
-			
-			logger.debug("Received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the file");
-		}
 		
-		fileOut.close();
+		try {		
+			FileOutputStream fileOut = new FileOutputStream(destinationPart, partFileLength != 0);
+			
+			FileWrapper wrapper = new FileWrapper(homePath + ".part", request.getUsername(), request.isShared(), false, false);
+			if(partFileLength == 0) {
+				try {
+					dbm.addFile(wrapper);
+				} catch (SQLException e) {
+					logger.error("A SQL error occurred while adding a new file: " + wrapper.getFilePath() + " to the database", e);
+					
+					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+					pw.flush();
+	
+					return false;				
+				} catch (RequestExecutionException e) {
+					logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
+					
+					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+					pw.flush();
+					
+					return false;
+				}
+			}
+			else {
+				try {
+					dbm.updateFile(wrapper.getFilePath(), wrapper);
+				} catch (SQLException e) {
+					logger.error("A SQL error occurred while updating the file: " + wrapper.getFilePath() + " in the database", e);
+					
+					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+					pw.flush();
+	
+					return false;
+				} catch (RequestExecutionException e) {
+					logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
+					
+					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
+					pw.flush();
+	
+					return false;
+				}
+			} 			
+		
+			pw.write(ConnectionSettings.UPLOAD_OK + " " + partFileLength + "\n");
+			pw.flush();
+			
+			
+			byte[] buffer = new byte[64000];
+	
+			InputStream inFile = socket.getInputStream();
+	
+			logger.info("Starting the upload of the file");
+	
+			while (true) {
+				if (totalBytesRead == request.getFileSize())
+					break;
+				
+				int numBytesRead = inFile.read(buffer);
+				if (numBytesRead == -1)
+					break;
+				
+				fileOut.write(buffer, 0, numBytesRead);
+				fileOut.flush();
+	
+				totalBytesRead += numBytesRead;
+				
+				logger.debug("Received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the file");
+			}
+			
+			fileOut.close();
+		} catch(IOException e) {
+			logger.error("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
+			return false;			
+		}
 		
 		if (totalBytesRead != request.getFileSize()) {
-			logger.warn("Only received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the uploaded file");
+			logger.warn("Only received " + totalBytesRead + "/" + request.getFileSize() + " bytes of the uploaded file: " + homePath);
 			
 			pw.write(ConnectionSettings.UPLOAD_FAIL + " " + totalBytesRead + "\n");
 			pw.flush();
+			
 			return false;
 		}
 		
@@ -718,7 +749,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		wrapper = new FileWrapper(homeDir + request.getNameOnServer(), request.getUsername(), request.isShared(), true);
+		FileWrapper wrapper = new FileWrapper(homePath, request.getUsername(), request.isShared(), true, false);
 		try {
 			dbm.updateFile(wrapper.getFilePath() + ".part", wrapper);
 		} catch (SQLException e) {
@@ -755,14 +786,14 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\" + request.getServerLocation();
 		String root = rootUploadDir + "\\" + homeDir;
 		
-		File serverFilePart = new File(root + request.getServerLocation() + ".part");
-		File serverFile = new File(root + request.getServerLocation());
+		File serverFilePart = new File(root + ".part");
+		File serverFile = new File(root);
 		
 		if(serverFilePart.exists()) {
-			logger.error("Unable to download file as the part file already exists < " + serverFilePart.getName() + ">");
+			logger.error("Unable to download file as the part file already exists < " + homeDir + ">");
 			
 			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
 			pw.flush();
@@ -771,7 +802,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		
 		if(serverFile.exists()) {
-			logger.error("Unable to download file as the file already exists < " + serverFile.getName() + ">");
+			logger.error("Unable to download file as the file already exists < " + homeDir + ">");
 			
 			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
 			pw.flush();
@@ -779,7 +810,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		FileWrapper wrapper = new FileWrapper(homeDir + serverFilePart.getName(), request.getUsername(), request.isShared(), false);
+		FileWrapper wrapper = new FileWrapper(homeDir + ".part", request.getUsername(), request.isShared(), false, false);
 		try {
 			dbm.addFile(wrapper);
 		} catch (SQLException e) {
@@ -816,16 +847,16 @@ public class ServerConnectionThread extends Thread {
 				return false;
 		    }
 		    
-		    wrapper = new FileWrapper(homeDir + serverFile.getName(), request.getUsername(), request.isShared(), true);
+		    wrapper = new FileWrapper(homeDir, request.getUsername(), request.isShared(), true, false);
 			try {
-				dbm.updateFile(homeDir + serverFilePart.getName(), wrapper);
+				dbm.updateFile(homeDir + ".part", wrapper);
 			} catch (SQLException e) {
-				logger.error("A SQL error occurred while updating the file: " + serverFilePart.getName() + " in the database", e);
+				logger.error("A SQL error occurred while updating the file: " + homeDir + ".part" + " in the database", e);
 				
 				return false;
 				
 			} catch (RequestExecutionException e) {
-				logger.error("The update of the file record: " + serverFilePart.getName() + " failed", e);
+				logger.error("The update of the file record: " + homeDir + ".part" + " failed", e);
 				
 				return false;
 			}
@@ -925,13 +956,13 @@ public class ServerConnectionThread extends Thread {
 			return;
 		}
 		
-		String homeDir = request.getOwner().toUpperCase() + "\\";
+		String homeDir = request.getOwner().toUpperCase() + "\\" + request.getFileName();
 		String root = rootUploadDir + "\\" + homeDir;
 		
-		File file = new File(root + request.getFileName());
+		File file = new File(root);
 		
 		try {
-			FileWrapper wrapper = dbm.getFile(homeDir + file.getName());
+			FileWrapper wrapper = dbm.getFile(homeDir, true);
 			
 			if(wrapper == null) {
 				logger.info("The server does not have the requested file: " + request.getFileName());
@@ -971,9 +1002,9 @@ public class ServerConnectionThread extends Thread {
 			return;
 		}
 		
-		String homeDir = request.getUsername().toUpperCase() + "\\";
+		String homeDir = request.getUsername().toUpperCase() + "\\" + request.getFileName();
 				
-		FileWrapper wrapper = new FileWrapper(homeDir + request.getFileName(), request.getUsername(), request.isShared(), true);
+		FileWrapper wrapper = new FileWrapper(homeDir, request.getUsername(), request.isShared(), true, false);
 		
 		try {
 			dbm.updatePermissions(wrapper);
@@ -1030,6 +1061,34 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.FILE_LIST_FAIL + "\n");
 			pw.flush();
 		} 
+	}
+	
+	private boolean purgeDeleted(String filePath) {
+		logger.info("Perging the file: " + filePath + " which has been marked for deletion");
+		
+		try {
+			dbm.deleteFile(filePath);
+		} catch (SQLException e) {
+			logger.error("A SQL error occurred while deleting the file: " + filePath, e);
+			
+			return false;
+		} catch (RequestExecutionException e) {
+			logger.error("The deletion of the file record: " + filePath + " failed", e);
+			
+			return false;
+		}
+		
+		File fileToDelete = new File(rootUploadDir + "\\" + filePath);
+				
+		if (!fileToDelete.delete()) {
+			logger.error("Unable to delete the file < " + filePath + ">");
+			
+		    return false;
+		}
+		
+		logger.info("The deletion of the file: " + filePath + " was successful");
+
+		return true;
 	}
 	
 	private String readLine(Socket socket) throws IOException {

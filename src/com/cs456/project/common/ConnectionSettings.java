@@ -14,6 +14,7 @@ public class ConnectionSettings {
 	public static final String DELETE_REQUEST = "DELETE_REQUEST";
 	public static final String DELETE_SUCCESS = "DELETE_SUCCESS";
 	public static final String DELETE_FAIL = "DELETE_FAIL";
+	public static final String DELETE_DELAYED = "DELETE_DELAYED";
 	public static final String REMOTE_DOWNLOAD_REQUEST = "REMOTE_DOWNLOAD_REQUEST";
 	public static final String REMOTE_DOWNLOAD_ACCEPT = "REMOTE_DOWNLOAD_ACCEPT";
 	public static final String BAD_AUTHENTICATION = "BAD_AUTHENTICATION";

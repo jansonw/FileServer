@@ -2,6 +2,7 @@ package com.cs456.project.client;
 
 import com.cs456.project.common.FileListManager;
 import com.cs456.project.exceptions.AuthenticationException;
+import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
@@ -17,7 +18,7 @@ public interface RequestInterface {
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
 	
 	public void requestFileDeletion(String fileLocationOnServer) 
-			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
+			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, DeletionDelayedException;
 	
 	public void requestUserRegistration(String username, String password) 
 			throws RequestExecutionException, DisconnectionException;

@@ -5,12 +5,14 @@ public class FileWrapper {
 	private String owner = null;
 	private boolean isShared = false;
 	private boolean isComplete = true;
+	private boolean markedForDeletion = false;
 	
-	public FileWrapper(String filePath, String owner, boolean isShared, boolean isComplete) {
+	public FileWrapper(String filePath, String owner, boolean isShared, boolean isComplete, boolean markedForDeletion) {
 		this.filePath = filePath;
 		this.owner = owner;
 		this.isShared = isShared;
 		this.isComplete = isComplete;
+		this.markedForDeletion = markedForDeletion;
 	}
 	
 	public String getFilePath() {
@@ -27,6 +29,10 @@ public class FileWrapper {
 	
 	public boolean isComplete() {
 		return this.isComplete;
+	}
+	
+	public boolean isMarkedForDeletion() {
+		return markedForDeletion;
 	}
 	
 	public static boolean charToBoolean(String str) {

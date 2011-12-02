@@ -81,7 +81,8 @@ public class DatabaseManager {
 				+ wrapper.getFilePath() + "', upper('"
 				+ wrapper.getOwner() + "'), '"
 				+ FileWrapper.booleanToChar(wrapper.isShared()) + "', '"
-				+ FileWrapper.booleanToChar(wrapper.isComplete()) + "')");
+				+ FileWrapper.booleanToChar(wrapper.isComplete()) + "', "
+				+ "'N')");
 	}
 	
 	public synchronized void deleteFile(String filePath) throws SQLException, RequestExecutionException {
@@ -104,22 +105,29 @@ public class DatabaseManager {
 		executeQuery("Update Files " + "set file_path='" + wrapper.getFilePath() 
 				+ "', shared='" + FileWrapper.booleanToChar(wrapper.isShared())
 				+ "', complete='" + FileWrapper.booleanToChar(wrapper.isComplete()) 
+				+ "', marked_for_deletion='" + FileWrapper.booleanToChar(wrapper.isMarkedForDeletion())
 				+ "' where upper(file_path)=upper('" + lookupFilePath + "')");
 	}
 	
 	public synchronized void updatePermissions(FileWrapper wrapper) throws SQLException, RequestExecutionException {
-		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y'");
+		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y' and marked_for_deletion='N'");
 		
 		if(!rs.next()) {
 			throw new RequestExecutionException("The file_path: " + wrapper.getFilePath() + " does not exist for owner: " + wrapper.getOwner().toUpperCase() + " that is complete");
 		}
 		
 		executeQuery("Update Files " + "set shared='" + FileWrapper.booleanToChar(wrapper.isShared())
-				+ "' where upper(file_path)=upper('" +  wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete = 'Y'");
+				+ "' where upper(file_path)=upper('" +  wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y' and marked_for_deletion='N'");
 	}
 	
-	public synchronized FileWrapper getFile(String filePath) throws SQLException {
-		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + filePath + "')");
+	public synchronized FileWrapper getFile(String filePath, boolean showDeleted) throws SQLException {
+		String query = "Select * from Files where upper(file_path)=upper('" + filePath + "')";
+		
+		if(!showDeleted) {
+			query += " and marked_for_deletion='N'";
+		}
+		
+		ResultSet rs = executeQuery(query);
 		
 		if(!rs.next()) {
 			return null;
@@ -128,16 +136,17 @@ public class DatabaseManager {
 		String owner = rs.getString("owner");
 		boolean isShared = FileWrapper.charToBoolean(rs.getString("shared"));
 		boolean isComplete = FileWrapper.charToBoolean(rs.getString("complete"));
+		boolean isMarkedForDeletion = FileWrapper.charToBoolean(rs.getString("marked_for_deletion"));
 		
 		
-		return new FileWrapper(filePath, owner, isShared, isComplete);
+		return new FileWrapper(filePath, owner, isShared, isComplete, isMarkedForDeletion);
 	}
 	
 	public synchronized Set<FileListObject> getFileList(String rootPath, String owner) throws SQLException {
 		ResultSet rs = executeQuery("Select file_path from Files where " +
 				"upper(file_path) LIKE upper('" + rootPath + "%') " +
 				"and (owner=upper('" + owner + "') or shared='Y') " +
-				"and complete='Y'");
+				"and complete='Y' and marked_for_deletion='N'");
 		
 		Set<FileListObject> fileList = new HashSet<FileListObject>();
 		

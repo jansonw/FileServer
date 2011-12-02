@@ -20,6 +20,7 @@ import com.cs456.project.common.FileListManager;
 import com.cs456.project.common.FileListObject;
 import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
+import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
@@ -105,7 +106,7 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileDeletion(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileDeletion(String fileLocationOnServer) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, DeletionDelayedException {
 		try {
 			openConnection();
 			initiateRequestConnection();
@@ -364,8 +365,6 @@ public class ClientConnection implements RequestInterface {
 			InputStream inFile = mySocket.getInputStream();
 			
 			while (true) {
-				System.out.println("BYTES READ: " + totalBytesRead + "/" + fileLength);
-							
 				if(totalBytesRead == fileLength) break;
 							
 				int numBytesRead = inFile.read(buffer);
@@ -392,6 +391,9 @@ public class ClientConnection implements RequestInterface {
 					" to the internet and then try your download request again.  If the download had begun, it will resume where it left off");
 		}
 		
+		pw.write(ConnectionSettings.DOWNLOAD_FINISHED + "\n");
+		pw.flush();
+		
 		if(!destinationPart.renameTo(destination)) {
 			System.err.println("Although the .part file is complete, could not rename the file to remove the .part..." +
 					"please fix the problem and run the download again, or manually remove the .part extension");
@@ -400,9 +402,6 @@ public class ClientConnection implements RequestInterface {
 					" If you choose the download approach, please note that the file will not be downloaded again, rather the program will" +
 					" attempt to rename the file once again for you.");
 		}
-		
-		pw.write(ConnectionSettings.DOWNLOAD_FINISHED + "\n");
-		pw.flush();
 	}
 	
 	private void uploadFile(String filename, String serverFilename, boolean isShared) throws RequestExecutionException, DisconnectionException {
@@ -498,7 +497,7 @@ public class ClientConnection implements RequestInterface {
         }
 	}
 	
-	private void deleteFile(String filename) throws RequestExecutionException, DisconnectionException {
+	private void deleteFile(String filename) throws RequestExecutionException, DisconnectionException, DeletionDelayedException {
 		System.out.println("C - Got Greeting response... requesting to delete");
 		
 		pw.write(ConnectionSettings.DELETE_REQUEST + " " + filename + "\n");
@@ -515,7 +514,12 @@ public class ClientConnection implements RequestInterface {
         if(ConnectionSettings.DELETE_SUCCESS.equals(line)) {
         	System.out.println("The deletion was successful");
         }
-        else {
+        else if(ConnectionSettings.DELETE_DELAYED.equals(line)) {
+        	System.out.println("The deletion was successful but the deletion was delayed");
+        	throw new DeletionDelayedException("The file you deleted is currently being accessed by other users so the file has only been marked for deletion." +
+        			" Once all current users are finished, the file will be deleted.");
+        }
+        else if(ConnectionSettings.DELETE_FAIL.equals(line)) {
         	System.err.println("The deletion has failed");
         	throw new RequestExecutionException("The file was unable to be deleted on the server.  Please ensure you have the" +
         			" proper privledges and then try your request again");
