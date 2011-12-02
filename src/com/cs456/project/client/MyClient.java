@@ -33,7 +33,7 @@ public class MyClient {
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "npp.5.9.6.2.Installer.exe", false);
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
 //			cc.requestPermissionsChange("file1.mp3", false);
-			List<FileListObject> fileList = cc.getFileList("test1");
+			List<FileListObject> fileList = cc.getFileList("janson");
 			
 			for(FileListObject o : fileList) {
 				System.out.println(o.getDisplayName() + "\tis_directory: " + o.isDirectory());

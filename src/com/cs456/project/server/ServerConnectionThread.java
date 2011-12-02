@@ -16,7 +16,9 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -1007,7 +1009,7 @@ public class ServerConnectionThread extends Thread {
 		}
 			
 		try {
-			List<FileListObject> fileList = dbm.getFileList(request.getRootPath(), request.getUsername());
+			Set<FileListObject> fileList = dbm.getFileList(request.getRootPath(), request.getUsername());
 			
 			logger.info("The file list retrieval for the root directory: " + request.getRootPath() + " for user " + request.getUsername());
 						

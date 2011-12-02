@@ -26,5 +26,20 @@ public class FileListObject implements Serializable {
 	public String getDisplayName() {
 		return this.displayName;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if(obj == null) return false;
+		if(!(obj instanceof FileListObject)) return false;		
+		
+		FileListObject o = (FileListObject)obj;
+		
+		return (displayName != null && displayName.equals(o.displayName) && isDirectory == o.isDirectory);
+	}
+
+	@Override
+	public int hashCode() {
+		return displayName.hashCode();
+	}
 	
 }
