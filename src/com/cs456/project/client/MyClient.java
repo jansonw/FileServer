@@ -1,7 +1,5 @@
 package com.cs456.project.client;
 
-import java.util.List;
-
 import com.cs456.project.common.Credentials;
 import com.cs456.project.common.FileListManager;
 import com.cs456.project.common.FileListObject;

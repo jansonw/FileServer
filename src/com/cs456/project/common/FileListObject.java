@@ -1,8 +1,8 @@
 package com.cs456.project.common;
 
 import java.io.Serializable;
-import java.util.Comparator;
 
+@SuppressWarnings("serial")
 public class FileListObject implements Serializable, Comparable<FileListObject> {
 	private String displayName;
 	private boolean isDirectory;
