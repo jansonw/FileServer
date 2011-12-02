@@ -67,7 +67,7 @@ public class ServerConnectionThread extends Thread {
 				return;
 			}
 		} catch (IOException e) {
-			logger.error("An error occurred while initiating connection with the client", e);
+			logger.info("An error occurred while initiating connection with the client", e);
 			closeClientConnection();
 			return;
 		} catch (SQLException e) {
@@ -75,27 +75,27 @@ public class ServerConnectionThread extends Thread {
 			closeClientConnection();
 			return;
 		} catch (AuthenticationException e) {
-			logger.error("The client was not authenticated and thus is being kicked out.  The attempted username and password were:" +
+			logger.info("The client was not authenticated and thus is being kicked out.  The attempted username and password were:" +
 					" username=" + e.getUsername() + " password=" + e.getPassword());
 			closeClientConnection();
 			return;
 		} catch (RegistrationException e) {
-			logger.error("An error occurred while registering the client.", e);
+			logger.info("An error occurred while registering the client.", e);
 			closeClientConnection();
 			return;
 		} catch (InvalidRequestException e) {
-			logger.error("The user sent an invalid request during authentication/registration.", e);
+			logger.info("The user sent an invalid request during authentication/registration.", e);
 		}
 		
 		Request request = null;
 		try {
 			request = getClientRequest(credentials);
 		} catch (InvalidRequestException e) {
-			logger.error("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + e.getInvalidRequest() + ">");
+			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + e.getInvalidRequest() + ">");
 			closeClientConnection();
 			return;
 		} catch (IOException e) {
-			logger.error("An error occurred when trying to obtain the clients <" + socket.getInetAddress() + "> request", e);
+			logger.info("An error occurred when trying to obtain the clients <" + socket.getInetAddress() + "> request", e);
 			closeClientConnection();
 			return;
 		} 
@@ -105,7 +105,7 @@ public class ServerConnectionThread extends Thread {
 			boolean downloadSuccess = sendFile((DownloadRequest)request);
 			
 			if(!downloadSuccess) {
-				logger.error("Sending the requested file to the client was not successful");
+				logger.info("Sending the requested file to the client was not successful");
 				closeClientConnection();
 				return;
 			}
@@ -115,7 +115,7 @@ public class ServerConnectionThread extends Thread {
 			boolean uploadSuccess = receiveFile((UploadRequest)request);
 			
 			if(!uploadSuccess) {
-				logger.error("Did not receive the entire file being uploaded.  The client must reconnect and send the rest of it.");
+				logger.info("Did not receive the entire file being uploaded.  The client must reconnect and send the rest of it.");
 				closeClientConnection();
 				return;
 			}
@@ -125,7 +125,7 @@ public class ServerConnectionThread extends Thread {
 			boolean success = deleteFile((DeleteRequest)request);
 			
 			if(!success) {
-				logger.error("Failed to delete the file");
+				logger.info("Failed to delete the file");
 				closeClientConnection();
 				return;
 			}
@@ -134,7 +134,7 @@ public class ServerConnectionThread extends Thread {
 			boolean remoteSuccess = remoteFileDownload((RemoteFileDownloadRequest)request);
 			
 			if(!remoteSuccess) {
-				logger.error("Failed to remotely download the file");
+				logger.info("Failed to remotely download the file");
 				closeClientConnection();
 				return;
 			}
@@ -143,7 +143,7 @@ public class ServerConnectionThread extends Thread {
 			boolean passSuccess = passwordChange((PasswordChangeRequest)request);
 			
 			if(!passSuccess) {
-				logger.error("Failed to change the user's password");
+				logger.info("Failed to change the user's password");
 				closeClientConnection();
 				return;
 			}
@@ -205,7 +205,7 @@ public class ServerConnectionThread extends Thread {
 		ResultSet rs = dbm.executeQuery(query);
 		
 		if(!rs.next()) {
-			logger.error("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the username does not exist:" +
+			logger.info("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the username does not exist:" +
 					" username=" + username + " password=" + password);
 			
 			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
@@ -215,7 +215,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		
 		if(!password.equals(rs.getString("password"))) {
-			logger.error("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the password is incorrect:" +
+			logger.info("The client <" + socket.getInetAddress() + "> attempted to authenticate with the following invalid credentials, the password is incorrect:" +
 					" username=" + username + " password=" + password);
 			
 			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
@@ -416,14 +416,14 @@ public class ServerConnectionThread extends Thread {
 			wrapper = dbm.getFile(homeDir, false);
 			
 			if(wrapper == null) {
-				logger.error("Unable to delete the file < " + homeDir + "> as the file does not exist");
+				logger.info("Unable to delete the file < " + homeDir + "> as the file does not exist");
 				
 				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 				pw.flush();
 			}
 			
 			if(!wrapper.getOwner().equals(request.getUsername())) {
-				logger.error("The user: " + request.getUsername() + " was attempting to delete the file: " + wrapper.getFilePath() + " which is owned by: " + wrapper.getOwner());
+				logger.info("The user: " + request.getUsername() + " was attempting to delete the file: " + wrapper.getFilePath() + " which is owned by: " + wrapper.getOwner());
 				
 				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 				pw.flush();
@@ -441,7 +441,7 @@ public class ServerConnectionThread extends Thread {
 		File fileToDelete = new File(root);
 		
 		if(!fileToDelete.exists()) {
-			logger.error("Unable to delete the file < " + homeDir + "> as the file does not exist");
+			logger.info("Unable to delete the file < " + homeDir + "> as the file does not exist");
 			
 			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 			pw.flush();
@@ -462,7 +462,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 			
 		} catch (RequestExecutionException e) {
-			logger.error("The update of the file record: " + homeDir + " failed", e);
+			logger.info("The update of the file record: " + homeDir + " failed", e);
 			
 			pw.write(ConnectionSettings.DELETE_FAIL + "\n");
 			pw.flush();
@@ -516,7 +516,7 @@ public class ServerConnectionThread extends Thread {
 			FileWrapper wrapper = dbm.getFile(homePath, false);
 			
 			if(wrapper == null) {
-				logger.error("The file: " + homePath + " could not be found.");
+				logger.info("The file: " + homePath + " could not be found.");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
 				
@@ -524,7 +524,7 @@ public class ServerConnectionThread extends Thread {
 			}
 			
 			if(!wrapper.getOwner().equals(request.getUsername()) && !wrapper.isShared()) {
-				logger.error("The user: " + request.getUsername() + " attempted to download the file: " + homePath + 
+				logger.info("The user: " + request.getUsername() + " attempted to download the file: " + homePath + 
 						" which is owned by: " + wrapper.getOwner() + " and is not shared");
 				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
 				pw.flush();
@@ -607,7 +607,7 @@ public class ServerConnectionThread extends Thread {
 				return false;
 			}
 		} catch(IOException e) {
-			logger.error("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
+			logger.info("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
 			boolean deletionRequired = FileManager.getInstance().decrementFileInUse(homePath);
 			
 			if(deletionRequired) {
@@ -646,7 +646,7 @@ public class ServerConnectionThread extends Thread {
 		File destination = new File(rootPath);
 		
 		if(destination.exists()) {
-			logger.error("Unable to upload the file as the file already exists: " + homePath);
+			logger.info("Unable to upload the file as the file already exists: " + homePath);
 			
 			pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
 			pw.flush();
@@ -671,7 +671,7 @@ public class ServerConnectionThread extends Thread {
 	
 					return false;				
 				} catch (RequestExecutionException e) {
-					logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
+					logger.info("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
 					
 					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
 					pw.flush();
@@ -690,7 +690,7 @@ public class ServerConnectionThread extends Thread {
 	
 					return false;
 				} catch (RequestExecutionException e) {
-					logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
+					logger.info("The update of the file record: " + wrapper.getFilePath() + " failed", e);
 					
 					pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
 					pw.flush();
@@ -727,7 +727,7 @@ public class ServerConnectionThread extends Thread {
 			
 			fileOut.close();
 		} catch(IOException e) {
-			logger.error("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
+			logger.info("The user: " + request.getUsername() + " has prematurely disconnected from downloding their file: " + homePath);
 			return false;			
 		}
 		
@@ -760,7 +760,7 @@ public class ServerConnectionThread extends Thread {
 
 			return false;
 		} catch (RequestExecutionException e) {
-			logger.error("The update of the file record: " + wrapper.getFilePath() + " failed", e);
+			logger.info("The update of the file record: " + wrapper.getFilePath() + " failed", e);
 			
 			pw.write(ConnectionSettings.UPLOAD_FAIL + "\n");
 			pw.flush();
@@ -793,7 +793,7 @@ public class ServerConnectionThread extends Thread {
 		File serverFile = new File(root);
 		
 		if(serverFilePart.exists()) {
-			logger.error("Unable to download file as the part file already exists < " + homeDir + ">");
+			logger.info("Unable to download file as the part file already exists < " + homeDir + ">");
 			
 			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
 			pw.flush();
@@ -802,7 +802,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		
 		if(serverFile.exists()) {
-			logger.error("Unable to download file as the file already exists < " + homeDir + ">");
+			logger.info("Unable to download file as the file already exists < " + homeDir + ">");
 			
 			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
 			pw.flush();
@@ -821,7 +821,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 			
 		} catch (RequestExecutionException e) {
-			logger.error("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
+			logger.info("The insertion of the new file record: " + wrapper.getFilePath() + " failed", e);
 			
 			pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
 			pw.flush();
@@ -851,7 +851,7 @@ public class ServerConnectionThread extends Thread {
 			try {
 				dbm.updateFile(homeDir + ".part", wrapper);
 			} catch (SQLException e) {
-				logger.error("A SQL error occurred while updating the file: " + homeDir + ".part" + " in the database", e);
+				logger.info("A SQL error occurred while updating the file: " + homeDir + ".part" + " in the database", e);
 				
 				return false;
 				
@@ -896,7 +896,7 @@ public class ServerConnectionThread extends Thread {
 			
 			throw new RegistrationException("The registration was not successful due to an SQL error");
 		} catch (RequestExecutionException e) {
-			logger.error(e.getMessage());
+			logger.info(e.getMessage());
 			
 			pw.write(ConnectionSettings.REGISTRATION_INVALID + "\n");
 			pw.flush();
@@ -911,7 +911,7 @@ public class ServerConnectionThread extends Thread {
 		
 		File directory = new File(rootUploadDir + "\\" + username.toUpperCase());
 		if(directory.exists()) {
-			logger.error("Attempted to create home directory for new user but it already exists: " + username);
+			logger.info("Attempted to create home directory for new user but it already exists: " + username);
 		}
 		else {
 			boolean success = directory.mkdir();
@@ -934,7 +934,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.PASSWORD_CHANGE_FAILED + "\n");
 			pw.flush();
 			
-			logger.error("The old password the user provided was not correct");
+			logger.info("The old password the user provided was not correct");
 			return false;
 		}
 		
@@ -1020,7 +1020,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
 			pw.flush();
 		} catch (RequestExecutionException e) {
-			logger.error("The change of permissions request was rejected by the database for file: " + request.getFileName(), e);
+			logger.info("The change of permissions request was rejected by the database for file: " + request.getFileName(), e);
 			
 			pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
 			pw.flush();
@@ -1073,7 +1073,7 @@ public class ServerConnectionThread extends Thread {
 			
 			return false;
 		} catch (RequestExecutionException e) {
-			logger.error("The deletion of the file record: " + filePath + " failed", e);
+			logger.info("The deletion of the file record: " + filePath + " failed", e);
 			
 			return false;
 		}
