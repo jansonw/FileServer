@@ -532,6 +532,15 @@ public class ServerConnectionThread extends Thread {
 				return false;
 			}
 			
+			if(!wrapper.isComplete()) {
+				logger.info("The user: " + request.getUsername() + " attempted to download the file: " + homePath + 
+						" which is not complete");
+				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+				
+				return false;
+			}
+			
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while retrieving the file: " + homePath + " from the database", e);
 			return false;		

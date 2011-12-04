@@ -6,6 +6,7 @@ import java.io.Serializable;
 public class FileListObject implements Serializable, Comparable<FileListObject> {
 	private String displayName;
 	private boolean isDirectory;
+	private boolean isDeleteOnly = false;
 
 	public FileListObject(String filePath, String rootDirectory) {		
 		String temp = filePath.substring(rootDirectory.length(), filePath.length());
@@ -17,11 +18,19 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 		else {
 			isDirectory = false;
 			displayName = temp;
+			
+			if(filePath.endsWith(".part")) {
+				isDeleteOnly = true;
+			}			
 		}
+	}
+	
+	public boolean isDeleteOnly() {
+		return this.isDeleteOnly;
 	}
 
 	public boolean isDirectory() {
-		return isDirectory;
+		return this.isDirectory;
 	}
 	
 	public String getDisplayName() {

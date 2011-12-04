@@ -145,8 +145,8 @@ public class DatabaseManager {
 	public synchronized Set<FileListObject> getFileList(String rootPath, String owner) throws SQLException {
 		ResultSet rs = executeQuery("Select file_path from Files where " +
 				"upper(file_path) LIKE upper('" + rootPath + "%') " +
-				"and (owner=upper('" + owner + "') or shared='Y') " +
-				"and complete='Y' and marked_for_deletion='N'");
+				"and (owner=upper('" + owner + "') or (shared='Y' and complete='Y')) " +
+				"and marked_for_deletion='N'");
 		
 		Set<FileListObject> fileList = new HashSet<FileListObject>();
 		

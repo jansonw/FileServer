@@ -36,11 +36,11 @@ public class MyClient {
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
 //			cc.requestPermissionsChange("folder\\file1.mp3", true);
 			
-//			FileListManager fileListManager = cc.getFileList("janson");
-//			
-//			for(FileListObject o : fileListManager.getAll(true)) {
-//				System.out.println(o.getDisplayName() + "\tis_directory: " + o.isDirectory());
-//			}
+			FileListManager fileListManager = cc.getFileList("janson");
+			
+			for(FileListObject o : fileListManager.getAll(true)) {
+				System.out.println(o.getDisplayName() + "\tis_directory: " + o.isDirectory() + "\tis_delete_only: " + o.isDeleteOnly());
+			}
 
 		} catch (DisconnectionException e) {
 			// TODO Auto-generated catch block
