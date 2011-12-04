@@ -235,6 +235,24 @@ public class ClientConnection implements RequestInterface {
 		return fileListManager;
 	}
 	
+	@Override
+	public void verifyCredentials() throws AuthenticationException, RequestPermissionsException, DisconnectionException {
+		try {
+			openConnection();
+			initiateRequestConnection();
+			closeConnection();
+		} catch (AuthenticationException e) {
+			closeConnection();			
+			throw e;
+		} catch (RequestPermissionsException e) {
+			closeConnection();			
+			throw e;
+		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		}
+	}
+	
 	private void openConnection() throws DisconnectionException {
 		try {
 			mySocket = new Socket(ConnectionSettings.hostname, ConnectionSettings.port);

@@ -26,6 +26,8 @@ public class MyClient {
 			cc.setCredentials(new Credentials("janson", "abc123"));
 //			cc.setCredentials(new Credentials("test1", "newPassword"));
 			
+//			cc.verifyCredentials();
+			
 //			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "file1.mp3", true);
 //			cc.requestFileExistance("file1.mp3", "janson");
 //			cc.requestFileDownload("download\\file9.mp3", "folder\\file1.mp3", "janson");

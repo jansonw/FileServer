@@ -34,4 +34,7 @@ public interface RequestInterface {
 	
 	public FileListManager getFileList(String rootPath) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
+	
+	public void verifyCredentials() 
+			throws AuthenticationException, RequestPermissionsException, DisconnectionException;
 }

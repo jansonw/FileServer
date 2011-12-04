@@ -95,7 +95,7 @@ public class ServerConnectionThread extends Thread {
 			closeClientConnection();
 			return;
 		} catch (IOException e) {
-			logger.info("An error occurred when trying to obtain the clients <" + socket.getInetAddress() + "> request", e);
+			logger.info("The client <" + socket.getInetAddress() + "> disconnected instead of sending a request the clients");
 			closeClientConnection();
 			return;
 		} 
