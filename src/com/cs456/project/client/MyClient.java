@@ -6,6 +6,7 @@ import com.cs456.project.common.FileListObject;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
+import com.cs456.project.exceptions.OutOfDateException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
 
@@ -28,9 +29,9 @@ public class MyClient {
 			
 //			cc.verifyCredentials();
 			
-//			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\file.mp3", "file1.mp3", true);
+			cc.requestFileUpload("C:\\Users\\Janson\\workspace\\FileServer\\partFileTest.txt", "folder\\partFileTest.txt", true);
 //			cc.requestFileExistance("file1.mp3", "janson");
-//			cc.requestFileDownload("download\\file9.mp3", "folder\\file1.mp3", "janson");
+//			cc.requestFileDownload("download\\partFileTest2.txt", "partFileTest.txt", "janson");
 			cc.requestFileDeletion("file1.mp3");
 //			cc.requestRemoteFileDownload("http://download.tuxfamily.org/notepadplus/5.9.6.2/npp.5.9.6.2.Installer.exe", "npp.5.9.6.2.Installer3.exe", false);
 //			cc.requestFileExistance("npp.5.9.6.2.Installer.exe", "test1");
@@ -55,6 +56,9 @@ public class MyClient {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (DeletionDelayedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (OutOfDateException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

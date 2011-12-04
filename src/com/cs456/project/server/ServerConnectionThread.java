@@ -268,15 +268,16 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.UPLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 3) {
+			if(arguments.length != 4) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their upload request", line);
 			}
 			
 			String nameOnServer = arguments[0].trim();
 			long fileSize = Long.parseLong(arguments[1].trim());
 			boolean isShared = FileWrapper.charToBoolean(arguments[2].trim());
+			long lastModified = Long.parseLong(arguments[3].trim());
 			
-			request = new UploadRequest(nameOnServer, fileSize, isShared, credentials);			
+			request = new UploadRequest(nameOnServer, fileSize, isShared, lastModified, credentials);			
 		}
 		// DOWNLOAD
 		else if (line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REQUEST)) {
@@ -285,15 +286,14 @@ public class ServerConnectionThread extends Thread {
 			String stringArguments = line.substring(ConnectionSettings.DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
 			
-			if(arguments.length != 3) {
+			if(arguments.length != 2) {
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their download request", line);
 			}
 			
 			String downloadFilename = arguments[0].trim();
-			long startPosition = Long.parseLong(arguments[1].trim());
-			String owner = arguments[2].trim();
+			String owner = arguments[1].trim();
 			
-			request = new DownloadRequest(downloadFilename, startPosition, owner, credentials);			
+			request = new DownloadRequest(downloadFilename, owner, credentials);			
 		}
 		else if (line != null && line.startsWith(ConnectionSettings.DELETE_REQUEST)) {
 			String stringArguments = line.substring(ConnectionSettings.DELETE_REQUEST.length()).trim();
@@ -566,12 +566,39 @@ public class ServerConnectionThread extends Thread {
 			fis = new FileInputStream(downloadFile);
 			logger.info("Telling the client <" + socket.getInetAddress() + "> that their download request is going to be serviced");
 	
-			pw.write(ConnectionSettings.DOWNLOAD_OK + " " + downloadFile.length() + "\n");
+			pw.write(ConnectionSettings.DOWNLOAD_OK + " " + downloadFile.length() + " " + downloadFile.lastModified() + "\n");
 			pw.flush();
+			
+			String line = readLine(socket);
+			if(line == null || !line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
+				logger.error("The user did not send the download_ok message for the download request.  Instead they sent: <" + line + ">");
+				
+				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+				
+	        	return false;
+			}
+			
+			String stringArugments = line.substring(ConnectionSettings.DOWNLOAD_OK.length()).trim();
+	        String[] arguments = stringArugments.split(" ");
+	        
+	        if(arguments.length != 1) {
+	        	logger.error("The user did not provide the correct number of arguments for their download request: <" + line + ">");
+	        	
+	        	pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+	        	
+	        	return false;
+	        }
+	        
+	        pw.write(ConnectionSettings.DOWNLOAD_OK + "\n");
+			pw.flush();
+	        
+	        long startPosition = Long.parseLong(arguments[0]);
 	
 			byte[] buffer = new byte[64000];
 	
-			boolean readPartFile = request.getStartPosition() != 0;
+			boolean readPartFile = startPosition != 0;
 			
 			long totalBytesRead = 0;
 			
@@ -583,8 +610,8 @@ public class ServerConnectionThread extends Thread {
 				totalBytesRead += numBytesRead;
 	
 				if(readPartFile) {
-					if(totalBytesRead > request.getStartPosition()) {
-						int numBytesLeft = (int)(request.getStartPosition() % 64000);
+					if(totalBytesRead > startPosition) {
+						int numBytesLeft = (int)(startPosition % 64000);
 						out.write(buffer, numBytesLeft, numBytesRead - numBytesLeft);
 						out.flush();
 						readPartFile = false;
@@ -603,7 +630,7 @@ public class ServerConnectionThread extends Thread {
 			logger.info("The requested download file: " + homePath
 					+ " has been sent in its entirety");
 
-			String line = readLine(socket);
+			line = readLine(socket);
 
 			if (!ConnectionSettings.DOWNLOAD_FINISHED.equals(line)) {
 				logger.warn("The client did not send the download finished message.  It sent: <" + line + ">");
@@ -659,6 +686,16 @@ public class ServerConnectionThread extends Thread {
 			
 			pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
 			pw.flush();
+			return false;
+		}
+		
+		if(destinationPart.exists() && destinationPart.lastModified() != request.getLastModified()) {
+			logger.info("Unable to upload the file: " + request.getNameOnServer() + " as the last modified date of the .part " +
+					"file on the server does not match that of the clients.");
+			
+			pw.write(ConnectionSettings.UPLOAD_OUT_OF_DATE + "\n");
+			pw.flush();
+			
 			return false;
 		}
 		

@@ -5,6 +5,7 @@ public class ConnectionSettings {
 	public static final String UPLOAD_REQUEST = "UPLOAD";
 	public static final String UPLOAD_OK = "UPLOAD_OK";
 	public static final String UPLOAD_REJECT = "UPLOAD_REJECT";
+	public static final String UPLOAD_OUT_OF_DATE = "UPLOAD_OUT_OF_DATE";
 	public static final String UPLOAD_FAIL = "UPLOAD_FAIL";
 	public static final String UPLOAD_FINISHED = "UPLOAD_FINISHED";
 	public static final String DOWNLOAD_REQUEST = "DOWNLOAD";

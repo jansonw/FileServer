@@ -6,8 +6,9 @@ public class UploadRequest extends Request {
 	private String nameOnServer = null;
 	private long fileSize = -1;
 	private boolean isShared = false;
+	private long lastModified;
 	
-	public UploadRequest(String nameOnServer, long fileSize, boolean isShared, Credentials credentials) {
+	public UploadRequest(String nameOnServer, long fileSize, boolean isShared, long lastModified, Credentials credentials) {
 		super(credentials);
 		
 		this.request = RequestType.UPLOAD;
@@ -26,5 +27,9 @@ public class UploadRequest extends Request {
 	
 	public boolean isShared() {
 		return this.isShared;
+	}
+	
+	public long getLastModified() {
+		return this.lastModified;
 	}
 }

@@ -4,15 +4,16 @@ import com.cs456.project.common.FileListManager;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
+import com.cs456.project.exceptions.OutOfDateException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
 
 public interface RequestInterface {
 	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) 
-			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
+			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, OutOfDateException;
 	
 	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) 
-			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;
+			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, OutOfDateException;
 	
 	public void requestRemoteFileDownload(String urlLocation, String locationOnServer, boolean isShared) 
 			throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException;

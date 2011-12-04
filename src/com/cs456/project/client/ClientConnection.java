@@ -22,6 +22,7 @@ import com.cs456.project.common.FileWrapper;
 import com.cs456.project.exceptions.AuthenticationException;
 import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
+import com.cs456.project.exceptions.OutOfDateException;
 import com.cs456.project.exceptions.RequestExecutionException;
 import com.cs456.project.exceptions.RequestPermissionsException;
 
@@ -40,7 +41,7 @@ public class ClientConnection implements RequestInterface {
 	}
 
 	@Override
-	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, OutOfDateException {
 		try {	
 			openConnection();
 			initiateRequestConnection();
@@ -58,11 +59,14 @@ public class ClientConnection implements RequestInterface {
 		} catch (DisconnectionException e) {
 			closeConnection();			
 			throw e;
+		} catch (OutOfDateException e) {
+			closeConnection();			
+			throw e;
 		}
 	}
 
 	@Override
-	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException {
+	public void requestFileUpload(String fileLocation, String serverFilename, boolean isShared) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, OutOfDateException {
 		try {
 			openConnection();
 			initiateRequestConnection();
@@ -78,6 +82,9 @@ public class ClientConnection implements RequestInterface {
 			closeConnection();			
 			throw e;
 		} catch (DisconnectionException e) {
+			closeConnection();			
+			throw e;
+		} catch (OutOfDateException e) {
 			closeConnection();			
 			throw e;
 		}
@@ -335,7 +342,7 @@ public class ClientConnection implements RequestInterface {
         }	
 	}
 	
-	private void downloadFile(String localFilename, String serverFilename, String owner) throws RequestExecutionException, DisconnectionException {
+	private void downloadFile(String localFilename, String serverFilename, String owner) throws RequestExecutionException, DisconnectionException, OutOfDateException {
 		System.out.println("C - Got Greeting response.. requesting download");
 		
 		File destinationPart = new File(localFilename + ".part");
@@ -347,10 +354,8 @@ public class ClientConnection implements RequestInterface {
 					" already exists in the download directory.  The file name and location you chose was: " + destination.getPath() +
 					"\nPlease choose another file name for the requested file download");
 		}
-		
-		long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
-		
-		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " + partFileLength + " " + owner + "\n");
+				
+		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " +  owner + "\n");
 		pw.flush();
 		
 		try {
@@ -367,7 +372,45 @@ public class ClientConnection implements RequestInterface {
 			
 			System.out.println("C - Got download response");
 			
-			long fileLength = Long.parseLong(line.substring(ConnectionSettings.DOWNLOAD_OK.length()).trim());
+			String stringArugments = line.substring(ConnectionSettings.DOWNLOAD_OK.length()).trim();
+	        String[] arguments = stringArugments.split(" ");
+	        
+	        if(arguments.length != 2) {
+	        	throw new RequestExecutionException("The server did not respond with the correct data. " +
+	        			"Please contact customer support regarding this issue and then try your download request again.");
+	        }
+	        
+	        long fileLength = Long.parseLong(arguments[0]);
+	        long lastModified = Long.parseLong(arguments[1]);
+	        
+	        if(destinationPart.exists() && lastModified > destinationPart.lastModified()) {
+	        	throw new OutOfDateException("The .part file of the file you are requesting to download is older than the file on the server. " +
+	        			"Please delete your .part file and then try your download request again.");
+	        }
+	        else if(destinationPart.exists() && lastModified < destinationPart.lastModified()) {
+	        	throw new OutOfDateException("The .part file of the file you are requesting to download is newer than the file on the server. " +
+	        			"Please delete your .part file and then try your download request again.");	        	
+	        }
+	        
+	        long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
+	        
+	        pw.write(ConnectionSettings.DOWNLOAD_OK + " " + partFileLength + "\n");
+			pw.flush();
+			
+			line = readLine(mySocket);
+			
+			if(line != null && line.startsWith(ConnectionSettings.DOWNLOAD_OK)) {
+				System.out.println("Download request was accepted");
+			}
+			else if(line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REJECT)) {
+				System.err.println("Server rejected file download");
+				throw new RequestExecutionException("The server has rejected your request to download the file.  Please ensure you have the " +
+						"proper privledges and then try again");
+			}
+			else {
+				throw new RequestExecutionException("The server has sent an invalid response while attempting to download your file." +
+						" Please contact customer support regarding this issue and then try your download request again.");
+			}			
 				
 			FileOutputStream fileOut;
 			try {
@@ -422,7 +465,7 @@ public class ClientConnection implements RequestInterface {
 		}
 	}
 	
-	private void uploadFile(String filename, String serverFilename, boolean isShared) throws RequestExecutionException, DisconnectionException {
+	private void uploadFile(String filename, String serverFilename, boolean isShared) throws RequestExecutionException, DisconnectionException, OutOfDateException {
 		File uploadFile = new File(filename);
 		System.out.println("C - Got Greeting response... requesting to Upload");
 
@@ -435,7 +478,7 @@ public class ClientConnection implements RequestInterface {
 					"\nPlease ensure the path to the file you provided is correct and then try your request again");
 		}
         
-        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + serverFilename + " " + uploadFile.length() + " " + FileWrapper.booleanToChar(isShared) + "\n");
+        pw.write(ConnectionSettings.UPLOAD_REQUEST + " " + serverFilename + " " + uploadFile.length() + " " + FileWrapper.booleanToChar(isShared) + " " + uploadFile.lastModified() + "\n");
         pw.flush();
         
         try {
@@ -445,9 +488,13 @@ public class ClientConnection implements RequestInterface {
 	        	System.out.println("Got the ok from the server");
 	        }
 	        else if(line != null && line.startsWith(ConnectionSettings.UPLOAD_REJECT)) {
-	        	System.err.println("Did not get the upload ok from server: " + line);
 	        	throw new RequestExecutionException("The server has rejected your request to upload the file.  Please ensure you have" +
 	        			" the proper privledges and the file dows not already exist, then try your request again");
+	        }
+	        else if(line != null && line.startsWith(ConnectionSettings.UPLOAD_OUT_OF_DATE)) {
+	        	throw new OutOfDateException("The server has rejected your request to upload the file as the last_modified date on the file" +
+	        			" you are uploading does not match the last_modified date of the .part file on the server.  Please delete the .part file" +
+	        			" on the server and then try your upload request again."); 
 	        }
 	        
 	        String stringArugments = line.substring(ConnectionSettings.UPLOAD_OK.length()).trim();
