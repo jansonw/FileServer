@@ -334,7 +334,7 @@ public class ClientConnection implements RequestInterface {
 	private void remoteFileDownload(String url, String serverLocation, boolean isShared) throws RequestExecutionException, DisconnectionException {
 		System.out.println("C - Got Greeting response... requesting to do a remote file download");
 		
-		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation + " " + isShared + "\n");
+		pw.write(ConnectionSettings.REMOTE_DOWNLOAD_REQUEST + " " + url + " " + serverLocation + " " + FileWrapper.booleanToChar(isShared) + "\n");
         pw.flush();
         
         String line;
