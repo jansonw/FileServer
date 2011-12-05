@@ -253,8 +253,6 @@ public class ServerActivity extends ListActivity {
 
 				if (!result) {
 				    handleError(msg);
-				    Intent i = new Intent(This,MenuActivity.class);
-				    startActivity(i);
 				    return;
 				}
 				dialog.dismiss();
