@@ -8,7 +8,7 @@ public class CC {
 	private static CC singleton = null; // A reference to the singleton object
 	
 	/**
-	 * Gets the instance of the singleton logger
+	 * Gets the instance of the singleton client connection
 	 * @return The singleton object
 	 */
 	public static CC getInstance() {

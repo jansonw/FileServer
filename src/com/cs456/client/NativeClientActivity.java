@@ -72,7 +72,7 @@ public class NativeClientActivity extends Activity {
 		    return;
 		}
 		Intent i = new Intent(This, MenuActivity.class);
-		cc.getCC().setCredentials(new Credentials(user.getText().toString(), pass.getText().toString()));
+		//cc.getCC().setCredentials(new Credentials(user.getText().toString(), pass.getText().toString()));
 		startActivity(i);
 	    }
 	}).start();

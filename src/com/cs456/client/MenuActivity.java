@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AutoCompleteTextView;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -29,6 +30,7 @@ public class MenuActivity extends Activity {
     private Handler handle = new Handler();
     AutoCompleteTextView url;
     EditText saveas;
+    CheckBox cbox;
     private Track track;
 
     public void onCreate(Bundle savedInstanceState) {
@@ -60,6 +62,8 @@ public class MenuActivity extends Activity {
 			    dialog.cancel();
 			}
 			serverlocation = saveas.getText().toString();
+			cbox = (CheckBox) textEntryView.findViewById(R.id.remote_share);
+			boolean tmp = cbox.isChecked();
 			new Thread(new Runnable() {
 			    public void run() {
 				String msg = "";
@@ -67,7 +71,7 @@ public class MenuActivity extends Activity {
 				try {
 				    cc.getCC().requestRemoteFileDownload(url.getText()
 					    .toString(), saveas.getText()
-					    .toString(), false);
+					    .toString(), cbox.isChecked());
 				    result = true;
 				} catch (AuthenticationException e) {
 				    msg = e.getMessage();

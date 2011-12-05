@@ -27,6 +27,7 @@ public class AccountActivity extends Activity {
     EditText password;
     ProgressDialog pdialog;
     private Handler handle = new Handler();
+    EditText old;
     Track track;
     String username;
     String pass;
@@ -41,7 +42,6 @@ public class AccountActivity extends Activity {
 	user.setText(username);
 	track = Track.getInstance();
 	track.setContext(this);
-	oldPass = pass;
     }
 
     /***
@@ -59,28 +59,22 @@ public class AccountActivity extends Activity {
 		new DialogInterface.OnClickListener() {
 		    @Override
 		    public void onClick(final DialogInterface dialog, int which) {
-			EditText old = (EditText) textEntryView.findViewById(R.id.oldpassword);
+			old = (EditText) textEntryView
+				.findViewById(R.id.oldpassword);
 			password = (EditText) textEntryView
 				.findViewById(R.id.dialog_pass1);
 			EditText password2 = (EditText) textEntryView
 				.findViewById(R.id.dialog_pass2);
 			// Send to server wait for return
-			if (!checkPass(pass,old.getText().toString())) {
-			    Toast.makeText(This, "old password doesn't match", 5);
-			    return;
-			} 
-			if (!checkPass(password.getText().toString(), password2
-				.getText().toString())){
-			    Toast.makeText(This, "Not same password", 5).show();
-			    return;
-			}
-			else {
+			if (checkPass(password.getText().toString(), password2
+				.getText().toString())) {
 			    new Thread(new Runnable() {
 				public void run() {
 				    boolean result = false;
 				    String message = "";
 				    try {
-					cc.getCC().requestPasswordChange(oldPass,
+					cc.getCC().requestPasswordChange(
+						old.getText().toString(),
 						password.getText().toString());
 					result = true;
 				    } catch (AuthenticationException e) {
@@ -107,10 +101,11 @@ public class AccountActivity extends Activity {
 					}
 				    });
 				    oldPass = password.getText().toString();
-				    cc.getCC().setCredentials(new Credentials(username, oldPass));
+				    cc.getCC().setCredentials(
+					    new Credentials(username, oldPass));
 				}
 			    }).start();
-			    dialog.dismiss();
+			     dialog.dismiss();
 			}
 		    }
 		});
@@ -142,6 +137,7 @@ public class AccountActivity extends Activity {
 	if (pass1.compareTo(pass2) == 0) {
 	    return true;
 	}
+	    Toast.makeText(this, "Not same password", 5).show();
 	return false;
     }
 

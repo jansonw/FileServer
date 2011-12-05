@@ -2,6 +2,8 @@ package com.cs456.client;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import android.app.AlertDialog;
@@ -20,6 +22,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.cs456.project.exceptions.AuthenticationException;
+import com.cs456.project.exceptions.DeletionDelayedException;
 import com.cs456.project.exceptions.DisconnectionException;
 import com.cs456.project.exceptions.OutOfDateException;
 import com.cs456.project.exceptions.RequestExecutionException;
@@ -58,13 +61,16 @@ public class ClientActivity extends ListActivity {
 	item = new ArrayList<String>();
 	path = new ArrayList<String>();
 	File f = new File(dirPath);
-	File[] files = f.listFiles();
+
+	List<File> files = Arrays.asList(f.listFiles());
+
 	if (!dirPath.trim().equals(sdCardRoot.getAbsoluteFile().toString())) {
 	    item.add("../");
 	    path.add(f.getParent());
 	}
-	for (int i = 0; i < files.length; i++) {
-	    File file = files[i];
+	Collections.sort(files);
+	for (int i = 0; i < files.size(); i++) {
+	    File file = files.get(i);
 	    path.add(file.getPath());
 	    if (file.isDirectory())
 		item.add(file.getName() + "/");
@@ -105,9 +111,9 @@ public class ClientActivity extends ListActivity {
 				final String currVal = currLoc.getText()
 					.toString();
 				try {
-				    cc.getCC().requestFileUpload(absPath, saveas
-					    .getText().toString(), share
-					    .isChecked());
+				    cc.getCC().requestFileUpload(absPath,
+					    saveas.getText().toString(),
+					    share.isChecked());
 				    result = true;
 				} catch (DisconnectionException e) {
 				    msg = e.getMessage();
@@ -119,6 +125,17 @@ public class ClientActivity extends ListActivity {
 				    msg = e.getMessage();
 				} catch (OutOfDateException e) {
 				    msg = e.getMessage();
+				    handle.post(new Runnable() {
+
+					@Override
+					public void run() {
+					    yesnoDialog(absPath, saveas
+						    .getText().toString(),
+						    share.isChecked());
+					}
+				    });
+
+				    return;
 				}
 				if (!result) {
 				    handleError(msg);
@@ -159,6 +176,109 @@ public class ClientActivity extends ListActivity {
 	alert.setTitle("Upload to Server");
 	alert.show();
 	currLoc.setText(f.getName());
+    }
+
+    private void yesnoDialog(final String sdCardLoc, final String loc,
+	    final boolean isShared) {
+	AlertDialog.Builder alertBuilder = new AlertDialog.Builder(This);
+	alertBuilder.setCancelable(false);
+	alertBuilder
+		.setMessage("The partial file on the server of the file you were uploading, is out of date, do you wish to delete and try again?");
+	alertBuilder.setPositiveButton("Yes",
+		new DialogInterface.OnClickListener() {
+
+		    @Override
+		    public void onClick(DialogInterface dialog, int which) {
+			new Thread(new Runnable() {
+
+			    @Override
+			    public void run() {
+				boolean result = false;
+				String msg = "";
+				handle.post(new ParamRunnable(loc) {
+				    @Override
+				    public void run() {
+					Toast.makeText(track.getContext(),
+						"Start delete of " + param, 5)
+						.show();
+				    }
+				});
+				try {
+				    cc.getCC().requestFileDeletion(
+					    loc + ".part");
+				    result = true;
+				} catch (DisconnectionException e) {
+				    msg = e.getMessage();
+				} catch (AuthenticationException e) {
+				    msg = e.getMessage();
+				} catch (RequestExecutionException e) {
+				    msg = e.getMessage();
+				} catch (RequestPermissionsException e) {
+				    msg = e.getMessage();
+				} catch (DeletionDelayedException e) {
+				    msg = e.getMessage();
+				}
+				if (!result) {
+				    handleError(msg);
+				    return;
+				}
+				result = false;
+				handle.post(new ParamRunnable(loc) {
+				    @Override
+				    public void run() {
+					Toast.makeText(
+						track.getContext(),
+						"Delete "
+							+ param
+							+ " completed.. Starting upload",
+						5).show();
+				    }
+				});
+				try {
+				    cc.getCC().requestFileUpload(sdCardLoc,
+					    loc, isShared);
+				    result = true;
+				} catch (DisconnectionException e) {
+				    msg = e.getMessage();
+				} catch (AuthenticationException e) {
+				    msg = e.getMessage();
+				} catch (RequestExecutionException e) {
+				    msg = e.getMessage();
+				} catch (RequestPermissionsException e) {
+				    msg = e.getMessage();
+				} catch (OutOfDateException e) {
+				    msg = e.getMessage();
+				}
+				if (!result) {
+				    handleError(msg);
+				    return;
+				}
+
+				handle.post(new ParamRunnable(sdCardLoc) {
+				    @Override
+				    public void run() {
+					Toast.makeText(
+						track.getContext(),
+						"Upload of " + param
+							+ " completed", 5)
+						.show();
+				    }
+				});
+			    }
+			}).start();
+
+		    }
+		});
+	alertBuilder.setNegativeButton("No",
+		new DialogInterface.OnClickListener() {
+		    public void onClick(DialogInterface dialog, int id) {
+			dialog.cancel();
+		    }
+		});
+
+	AlertDialog alert = alertBuilder.create();
+	alert.setTitle("Continue Uploading...");
+	alert.show();
     }
 
     @Override
