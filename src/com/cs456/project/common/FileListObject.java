@@ -25,6 +25,10 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 		}
 	}
 	
+	public void setDisplayName(String displayName) {
+		this.displayName = displayName;
+	}
+	
 	public boolean isDeleteOnly() {
 		return this.isDeleteOnly;
 	}
