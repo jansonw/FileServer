@@ -214,6 +214,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
 			pw.flush();
 			
+			rs.close();			
 			throw new AuthenticationException("The username was not found in the database", username, password, false);
 		}
 		
@@ -227,12 +228,15 @@ public class ServerConnectionThread extends Thread {
 			int numFail = rs.getInt("num_fail") + 1;
 			
 			if(numFail == 3) {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where upper(username)=upper('" + username + "')");
+				ResultSet rs1 = dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "', is_locked='Y' where upper(username)=upper('" + username + "')");
+				rs1.close();
 			}
 			else {
-				dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where upper(username)=upper('" + username + "')");
+				ResultSet rs1 = dbm.executeQuery("UPDATE USERS set num_fail='" + numFail + "'where upper(username)=upper('" + username + "')");
+				rs1.close();
 			}
 		    			
+			rs.close();
 			throw new AuthenticationException("The username/password combination was not found in the database", username, password, false);
 		}
 		
@@ -242,17 +246,21 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.LOCKED_OUT + "\n");
 			pw.flush();
 			
+			rs.close();
 			throw new AuthenticationException("The user is locked out", username, password, true);
 		}	
 		
 		if(rs.getInt("num_fail") != 0) {
-			dbm.executeQuery("UPDATE USERS set num_fail='0' where upper(username)=upper('" + username + "')");
+			ResultSet rs1 = dbm.executeQuery("UPDATE USERS set num_fail='0' where upper(username)=upper('" + username + "')");
+			rs1.close();
 		}
 
 		logger.info("The client <" + socket.getInetAddress() + "> has sent the appropriate greeting...returning the favour");
 
 		pw.write(ConnectionSettings.GREETING + "\n");
 		pw.flush();
+		
+		rs.close();
 		
 		return new Credentials(username, password);
 	}
