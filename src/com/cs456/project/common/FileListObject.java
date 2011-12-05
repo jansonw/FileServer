@@ -9,8 +9,10 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 	private boolean isDeleteOnly = false;
 	private boolean isMyFile;
 
-	public FileListObject(String filePath, String rootDirectory, boolean isMine) {		
+	public FileListObject(String filePath, String rootDirectory, boolean isMyFile) {		
 		String temp = filePath.substring(rootDirectory.length(), filePath.length());
+		
+		this.isMyFile = isMyFile;
 		
 		if(temp.contains("\\")) {
 			isDirectory = true;
