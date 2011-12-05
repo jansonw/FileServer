@@ -311,7 +311,7 @@ public class ClientConnection implements RequestInterface {
 		System.out.println("C - Closing Connection");
 			
 		try {
-			mySocket.close();
+			if(mySocket != null) mySocket.close();
 		} catch (IOException e) {
 			System.err.println("An error occurred while trying to close the socket");
 			e.printStackTrace();

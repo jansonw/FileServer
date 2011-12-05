@@ -1182,7 +1182,7 @@ public class ServerConnectionThread extends Thread {
 	private void closeClientConnection() {
 		try {
 			logger.info("Closing the client socket");
-			socket.close();
+			if(socket!=null) socket.close();
 		} catch (IOException e) {
 			logger.error("An error occurred while closing the client socket", e);
 		}
