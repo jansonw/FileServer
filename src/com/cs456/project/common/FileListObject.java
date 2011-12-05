@@ -8,8 +8,9 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 	private boolean isDirectory;
 	private boolean isDeleteOnly = false;
 	private boolean isMyFile;
+	private boolean isShared;
 
-	public FileListObject(String filePath, String rootDirectory, boolean isMyFile) {		
+	public FileListObject(String filePath, String rootDirectory, boolean isMyFile, boolean isShared) {		
 		String temp = filePath.substring(rootDirectory.length(), filePath.length());
 		
 		this.isMyFile = isMyFile;
@@ -26,6 +27,10 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 				isDeleteOnly = true;
 			}			
 		}
+	}
+	
+	public boolean isShared() {
+		return this.isShared;
 	}
 	
 	public boolean isMyFile() {

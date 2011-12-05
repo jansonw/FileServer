@@ -152,7 +152,8 @@ public class DatabaseManager {
 		
 		while(rs.next()) {
 			boolean isMine = rs.getString("owner").toUpperCase().equals(owner.toUpperCase());
-			fileList.add(new FileListObject(rs.getString("file_path"), rootPath, isMine));
+			boolean isShared = FileWrapper.charToBoolean(rs.getString("shared"));
+			fileList.add(new FileListObject(rs.getString("file_path"), rootPath, isMine, isShared));
 		}
 
 		return fileList;
