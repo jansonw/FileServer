@@ -652,7 +652,7 @@ public class ClientConnection implements RequestInterface {
         }
         else if(ConnectionSettings.PASSWORD_CHANGE_FAILED.equals(line)) {
         	System.err.println("The password change was not successful");
-        	throw new RequestExecutionException("Your password change request could not be serviced at this time.  Please try again later");
+        	throw new RequestExecutionException("Your old password did not match the password in the database.  Please try your request again.");
         }		
 	}
 	
