@@ -14,6 +14,7 @@ public class FileListObject implements Serializable, Comparable<FileListObject> 
 		String temp = filePath.substring(rootDirectory.length(), filePath.length());
 		
 		this.isMyFile = isMyFile;
+		this.isShared = isShared;
 		
 		if(temp.contains("\\")) {
 			isDirectory = true;
