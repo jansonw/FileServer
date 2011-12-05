@@ -39,6 +39,16 @@ public class ClientConnection implements RequestInterface {
 	public void setCredentials(Credentials credentials) {
 		this.credentials = credentials;
 	}
+	
+	public String getUsername() {
+		if(this.credentials == null) return null;
+		return this.credentials.getUsername();
+	}
+	
+	public String getPassword() {
+		if(this.credentials == null) return null;
+		return this.credentials.getPassword();
+	}
 
 	@Override
 	public void requestFileDownload(String localFileLocation, String fileLocationOnServer, String owner) throws DisconnectionException, AuthenticationException, RequestExecutionException, RequestPermissionsException, OutOfDateException {
