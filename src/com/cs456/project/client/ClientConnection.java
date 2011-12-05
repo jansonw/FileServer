@@ -664,6 +664,12 @@ public class ClientConnection implements RequestInterface {
         	System.err.println("The file does not exist");
         	throw new RequestExecutionException("The file you are looking for does not exist.");
         }
+        else if(ConnectionSettings.FILE_EXISTS_REJECT.equals(line)) {
+        	System.err.println("The file exists request was rejected");
+        	throw new RequestExecutionException("The file existance request was rejected. Please contact customer support" +
+        			" and then try your request again.");
+        }
+        
 	}
 	
 	private void permissionsChange(String serverFilePath, boolean newPermissions) throws DisconnectionException, RequestExecutionException {

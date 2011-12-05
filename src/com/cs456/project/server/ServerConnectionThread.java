@@ -80,11 +80,11 @@ public class ServerConnectionThread extends Thread {
 			closeClientConnection();
 			return;
 		} catch (RegistrationException e) {
-			logger.info("An error occurred while registering the client.", e);
+			logger.info(e.getMessage());
 			closeClientConnection();
 			return;
 		} catch (InvalidRequestException e) {
-			logger.info("The user sent an invalid request during authentication/registration.", e);
+			logger.info("The user sent an invalid request during authentication/registration.\n"+ e.getMessage());
 		}
 		
 		Request request = null;
@@ -195,6 +195,9 @@ public class ServerConnectionThread extends Thread {
 		String[] arguments = stringArguments.split(" ");
 		
 		if(arguments.length != 2) {
+			pw.write(ConnectionSettings.BAD_AUTHENTICATION + "\n");
+			pw.flush();
+			
 			throw new InvalidRequestException("The user did not provide their username and/or password", line);
 		}
 		
@@ -269,6 +272,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 4) {
+				pw.write(ConnectionSettings.UPLOAD_REJECT + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their upload request", line);
 			}
 			
@@ -287,6 +293,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 2) {
+				pw.write(ConnectionSettings.DOWNLOAD_REJECT + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their download request", line);
 			}
 			
@@ -300,6 +309,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 1) {
+				pw.write(ConnectionSettings.DELETE_FAIL + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their delete request", line);
 			}
 			
@@ -314,6 +326,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 3) {
+				pw.write(ConnectionSettings.REMOTE_DOWNLOAD_DECLINE + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their remote download request", line);
 			}
 			
@@ -331,6 +346,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 2) {
+				pw.write(ConnectionSettings.PASSWORD_CHANGE_FAILED + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their password change request", line);
 			}
 			
@@ -347,6 +365,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 2) {
+				pw.write(ConnectionSettings.FILE_EXISTS_REJECT + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file existance request", line);
 			}
 			
@@ -362,6 +383,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 2) {
+				pw.write(ConnectionSettings.PERMISSION_CHANGE_FAIL + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file existance permission change", line);
 			}
 			
@@ -377,6 +401,9 @@ public class ServerConnectionThread extends Thread {
 			String[] arguments = stringArguments.split(" ");
 			
 			if(arguments.length != 1) {
+				pw.write(ConnectionSettings.FILE_LIST_FAIL + "\n");
+				pw.flush();
+				
 				throw new InvalidRequestException("The user did not provide the correct number of arguments for their file list request", line);
 			}
 			

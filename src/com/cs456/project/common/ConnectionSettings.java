@@ -29,6 +29,7 @@ public class ConnectionSettings {
 	public static final String PASSWORD_CHANGE_OK = "PASSWORD_CHANGE_OK";
 	public static final String PASSWORD_CHANGE_FAILED = "PASSWORD_CHANGE_FAILED";
 	public static final String FILE_EXISTS_REQUEST = "FILE_EXISTS_REQUEST";
+	public static final String FILE_EXISTS_REJECT = "FILE_EXISTS_REJECT";
 	public static final String FILE_EXISTS_YES = "FILE_EXISTS_YES";
 	public static final String FILE_EXISTS_NO = "FILE_EXISTS_NO";
 	public static final String PERMISSION_CHANGE_REQUEST = "PERMISSION_CHANGE_REQUEST";
