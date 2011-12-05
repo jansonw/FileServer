@@ -91,11 +91,11 @@ public class ServerConnectionThread extends Thread {
 		try {
 			request = getClientRequest(credentials);
 		} catch (InvalidRequestException e) {
-			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + e.getInvalidRequest() + ">");
+			logger.info("The user: " + credentials.getUsername() + " has sent an invalid request: <" + e.getInvalidRequest() + ">");
 			closeClientConnection();
 			return;
 		} catch (IOException e) {
-			logger.info("The client <" + socket.getInetAddress() + "> disconnected instead of sending a request the clients");
+			logger.info("The user: " + credentials.getUsername() + " disconnected instead of sending a request the clients");
 			closeClientConnection();
 			return;
 		} 
@@ -266,7 +266,7 @@ public class ServerConnectionThread extends Thread {
 		
 		// UPLOAD
 		if (line != null && line.startsWith(ConnectionSettings.UPLOAD_REQUEST)) {
-			logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request: <" + line + ">");
+			logger.info("The user: " + credentials.getUsername() + " has sent an upload request: <" + line + ">");
 			
 			String stringArguments = line.substring(ConnectionSettings.UPLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
@@ -287,7 +287,7 @@ public class ServerConnectionThread extends Thread {
 		}
 		// DOWNLOAD
 		else if (line != null && line.startsWith(ConnectionSettings.DOWNLOAD_REQUEST)) {
-			logger.info("The client <" + socket.getInetAddress() + "> has sent a download request: <" + line + ">");
+			logger.info("The user: " + credentials.getUsername() + " has sent a download request: <" + line + ">");
 			
 			String stringArguments = line.substring(ConnectionSettings.DOWNLOAD_REQUEST.length()).trim();
 			String[] arguments = stringArguments.split(" ");
@@ -317,7 +317,7 @@ public class ServerConnectionThread extends Thread {
 			
 			String filename = arguments[0];
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to delete file: " + filename);
+			logger.info("The user: " + credentials.getUsername() + " has requested to delete file: " + filename);
 			
 			request = new DeleteRequest(filename, credentials);
 		}
@@ -336,7 +336,7 @@ public class ServerConnectionThread extends Thread {
 			String serverLocation = arguments[1];
 			boolean isShared = FileWrapper.charToBoolean(arguments[2]);
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to remotely download the file: " + url +
+			logger.info("The user: " + credentials.getUsername() + " has requested to remotely download the file: " + url +
 					" and store it here: " + serverLocation);
 			
 			request = new RemoteFileDownloadRequest(url, serverLocation, isShared, credentials);
@@ -355,7 +355,7 @@ public class ServerConnectionThread extends Thread {
 			String oldPassword = arguments[0];
 			String newPassword = arguments[1];
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to change their password from: " + oldPassword +
+			logger.info("The user: " + credentials.getUsername() + " has requested to change their password from: " + oldPassword +
 					" to: " + newPassword);
 			
 			request = new PasswordChangeRequest(oldPassword, newPassword, credentials);
@@ -374,7 +374,7 @@ public class ServerConnectionThread extends Thread {
 			String file = arguments[0];
 			String owner = arguments[1];
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has asked whether the file: " + file + " exists on the server");
+			logger.info("The user: " + credentials.getUsername() + " has asked whether the file: " + file + " exists on the server");
 			
 			request = new FileExistanceRequest(file, owner, credentials);
 		}
@@ -392,7 +392,7 @@ public class ServerConnectionThread extends Thread {
 			String file = arguments[0];
 			boolean newPermissions = FileWrapper.charToBoolean(arguments[1]);
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to thange the file's: " + file + " permission to: " + arguments[1]);
+			logger.info("The user: " + credentials.getUsername() + " has requested to thange the file's: " + file + " permission to: " + arguments[1]);
 			
 			request = new PermissionChangeRequest(file, newPermissions, credentials);
 		}
@@ -413,12 +413,12 @@ public class ServerConnectionThread extends Thread {
 				rootPath += "\\";
 			}
 			
-			logger.info("The client <" + socket.getInetAddress() + "> has requested to get the file list from root path: " + rootPath);
+			logger.info("The user: " + credentials.getUsername() + " has requested to get the file list from root path: " + rootPath);
 			
 			request = new FileListRequest(rootPath, credentials);
 		}
 		else {
-			logger.info("The client <" + socket.getInetAddress() + "> has sent an invalid request: <" + line + ">");
+			logger.info("The user: " + credentials.getUsername() + " has sent an invalid request: <" + line + ">");
 			throw new InvalidRequestException("An invalid client request occurred", line);
 		}
 		
@@ -573,7 +573,7 @@ public class ServerConnectionThread extends Thread {
 			return false;		
 		} 	
 		
-		logger.info("The client <" + socket.getInetAddress() + "> is requesting the following file: " +
+		logger.info("The user: " + request.getUsername() + " is requesting the following file: " +
 				homePath + " <" +  downloadFile.length() + " bytes>");
 
 		FileInputStream fis = null;
@@ -591,7 +591,7 @@ public class ServerConnectionThread extends Thread {
 		
 		try {
 			fis = new FileInputStream(downloadFile);
-			logger.info("Telling the client <" + socket.getInetAddress() + "> that their download request is going to be serviced");
+			logger.info("Telling The user: " + request.getUsername() + " that their download request is going to be serviced");
 	
 			pw.write(ConnectionSettings.DOWNLOAD_OK + " " + downloadFile.length() + " " + downloadFile.lastModified() + "\n");
 			pw.flush();
@@ -690,7 +690,7 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private boolean receiveFile(UploadRequest request) {
-		logger.info("The client <" + socket.getInetAddress() + "> has sent an upload request for a file of size " + 
+		logger.info("The user: " + request.getUsername() + " has sent an upload request for a file of size " + 
 				request.getFileSize() + " bytes");
 		
 		if(request.getNameOnServer().contains("..")) {
