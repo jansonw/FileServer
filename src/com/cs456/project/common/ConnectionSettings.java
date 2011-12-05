@@ -37,6 +37,7 @@ public class ConnectionSettings {
 	public static final String FILE_LIST_REQUEST = "FILE_LIST_REQUEST";
 	public static final String FILE_LIST_FAIL = "FILE_LIST_FAIL";
 	public static final String FILE_LIST_SUCCESS = "FILE_LIST_SUCCESS";
+	public static final String FILE_LIST_FINISHED = "FILE_LIST_FINISHED";
 
 	public static final String hostname = "localhost";
 	public static final String PERMISSION_CHANGE_SUCCESS = "PERMISSION_CHANGE_SUCCESS";

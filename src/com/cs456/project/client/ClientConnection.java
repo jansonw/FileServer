@@ -766,6 +766,9 @@ public class ClientConnection implements RequestInterface {
 			throw new RequestExecutionException("The file list request failed due to missing classes.  Please contact customer support");
 		}
 		
+		pw.write(ConnectionSettings.FILE_LIST_FINISHED + "\n");
+		pw.flush();
+		
 		return new FileListManager(fileList);
 	}
 	

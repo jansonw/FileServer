@@ -1129,6 +1129,12 @@ public class ServerConnectionThread extends Thread {
 				}
 				
 				oos.close();
+				
+				String line = readLine(socket);
+				if(line == null || !ConnectionSettings.FILE_LIST_FINISHED.equals(line)) {
+					logger.info("The user: " + request.getUsername() + " did not send the file list finished message.  They sent: " + line);
+					return;
+				}
 			} catch(IOException e) {}
 		} catch (SQLException e) {
 			logger.error("A SQL error occurred while retrieving the file list for the root directory: " + request.getRootPath() + " for user: " + request.getUsername(), e);
@@ -1136,6 +1142,7 @@ public class ServerConnectionThread extends Thread {
 			pw.write(ConnectionSettings.FILE_LIST_FAIL + "\n");
 			pw.flush();
 		} 
+		
 	}
 	
 	private boolean purgeDeleted(String filePath) {
