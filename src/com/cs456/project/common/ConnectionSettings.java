@@ -2,6 +2,7 @@ package com.cs456.project.common;
 
 public class ConnectionSettings {
 	public static final String GREETING = "HELLO";
+	public static final String GOODBYE = "GOODBYE";
 	public static final String UPLOAD_REQUEST = "UPLOAD";
 	public static final String UPLOAD_OK = "UPLOAD_OK";
 	public static final String UPLOAD_REJECT = "UPLOAD_REJECT";
