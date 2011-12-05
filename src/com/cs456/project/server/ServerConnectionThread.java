@@ -409,7 +409,7 @@ public class ServerConnectionThread extends Thread {
 			
 			String rootPath = arguments[0];
 			
-			if(!rootPath.endsWith("\\")) {
+			if(!rootPath.endsWith("\\") && !rootPath.equals("")) {
 				rootPath += "\\";
 			}
 			
