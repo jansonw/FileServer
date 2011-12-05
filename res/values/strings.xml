@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, nativeClientActivity!</string>
+    <string name="app_name">Com.cs446.NativeClient</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="email">E-mail</string>
+    <string name="download">Download</string>
+    <string name="upload">Upload</string>
+    <string name="account">Account</string>
+    <string name="delete">Delete</string>
+    <string name="setting">Settings</string>
+    <string name="fileSetting">File Settings</string>
+    <string name="remoteDownload">Remote Download</string>
+    <string name="details">Account Details</string>
+    <string name="changeEmail">Change\nEmail</string>
+    <string name="changePass">Change\nPassword</string>
+    <string name="remotedownload">download location (http)</string>
+
+</resources>
