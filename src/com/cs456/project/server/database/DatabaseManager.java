@@ -54,26 +54,31 @@ public class DatabaseManager {
 		ResultSet rs = executeQuery("Select * from Users where upper(username)=upper('" + username + "')");
 		
 		if(rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The username: " + username + " is already taken.");
 		}
 		
 		executeQuery("Insert into Users values (upper('" + username + "'), '" + password + "', '0', 'N')");
+		rs.close();
 	}
 	
 	public synchronized void passwordChange(String username, String oldPassword, String newPassword) throws SQLException, RequestExecutionException {
 		ResultSet rs = executeQuery("Select * from Users where upper(username)=upper('" + username + "') and password='" + oldPassword + "'");
 		
 		if(!rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The password supplied for username: " + username + " is incorrect!");
 		}
 		
 		executeQuery("Update Users set password='" + newPassword + "' where upper(username)=upper('" + username + "')");
+		rs.close();
 	}
 	
 	public synchronized void addFile(FileWrapper wrapper) throws SQLException, RequestExecutionException {
 		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "')");
 		
 		if(rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The file_path: " + wrapper.getFilePath() + " already exists.");
 		}
 		
@@ -83,22 +88,26 @@ public class DatabaseManager {
 				+ FileWrapper.booleanToChar(wrapper.isShared()) + "', '"
 				+ FileWrapper.booleanToChar(wrapper.isComplete()) + "', "
 				+ "'N')");
+		rs.close();
 	}
 	
 	public synchronized void deleteFile(String filePath) throws SQLException, RequestExecutionException {
 		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + filePath + "')");
 		
 		if(!rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The file_path: " + filePath + " does not exist.");
 		}
 		
 		executeQuery("Delete from Files where upper(file_path)=upper('" + filePath + "')");
+		rs.close();
 	}
 	
 	public synchronized void updateFile(String lookupFilePath, FileWrapper wrapper) throws SQLException, RequestExecutionException {
 		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + lookupFilePath + "')");
 		
 		if(!rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The file_path: " + lookupFilePath + " does not exist.");
 		}
 		
@@ -107,17 +116,20 @@ public class DatabaseManager {
 				+ "', complete='" + FileWrapper.booleanToChar(wrapper.isComplete()) 
 				+ "', marked_for_deletion='" + FileWrapper.booleanToChar(wrapper.isMarkedForDeletion())
 				+ "' where upper(file_path)=upper('" + lookupFilePath + "')");
+		rs.close();
 	}
 	
 	public synchronized void updatePermissions(FileWrapper wrapper) throws SQLException, RequestExecutionException {
 		ResultSet rs = executeQuery("Select * from Files where upper(file_path)=upper('" + wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y' and marked_for_deletion='N'");
 		
 		if(!rs.next()) {
+			rs.close();
 			throw new RequestExecutionException("The file_path: " + wrapper.getFilePath() + " does not exist for owner: " + wrapper.getOwner().toUpperCase() + " that is complete");
 		}
 		
 		executeQuery("Update Files " + "set shared='" + FileWrapper.booleanToChar(wrapper.isShared())
 				+ "' where upper(file_path)=upper('" +  wrapper.getFilePath() + "') and owner=upper('" + wrapper.getOwner() + "') and complete='Y' and marked_for_deletion='N'");
+		rs.close();
 	}
 	
 	public synchronized FileWrapper getFile(String filePath, boolean showDeleted) throws SQLException {
@@ -130,6 +142,7 @@ public class DatabaseManager {
 		ResultSet rs = executeQuery(query);
 		
 		if(!rs.next()) {
+			rs.close();
 			return null;
 		}
 		
@@ -138,7 +151,7 @@ public class DatabaseManager {
 		boolean isComplete = FileWrapper.charToBoolean(rs.getString("complete"));
 		boolean isMarkedForDeletion = FileWrapper.charToBoolean(rs.getString("marked_for_deletion"));
 		
-		
+		rs.close();
 		return new FileWrapper(filePath, owner, isShared, isComplete, isMarkedForDeletion);
 	}
 	
@@ -155,7 +168,8 @@ public class DatabaseManager {
 			boolean isShared = FileWrapper.charToBoolean(rs.getString("shared"));
 			fileList.add(new FileListObject(rs.getString("file_path"), rootPath, isMine, isShared));
 		}
-
+		rs.close();
+		
 		return fileList;
 	}
 	
