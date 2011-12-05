@@ -942,6 +942,8 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
+		logger.info("The remote file was successfully downloaded.");
+		
 		return true;
 	}
 	

@@ -173,11 +173,12 @@ public class ClientConnection implements RequestInterface {
 	}
 	
 	@Override
-	public void requestFileExistance(String serverFilePath, String owner) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+	public boolean requestFileExistance(String serverFilePath, String owner) throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException {
+		boolean fileExists = false;
 		try {
 			openConnection();
 			initiateRequestConnection();
-			fileExistance(serverFilePath, owner);
+			fileExists = fileExistance(serverFilePath, owner);
 			closeConnection();
 		} catch (AuthenticationException e) {
 			closeConnection();			
@@ -192,6 +193,8 @@ public class ClientConnection implements RequestInterface {
 			closeConnection();			
 			throw e;
 		}
+		
+		return fileExists;
 	}
 	
 	@Override
@@ -643,7 +646,7 @@ public class ClientConnection implements RequestInterface {
         }		
 	}
 	
-	private void fileExistance(String serverFilePath, String owner) throws DisconnectionException, RequestExecutionException {
+	private boolean fileExistance(String serverFilePath, String owner) throws DisconnectionException, RequestExecutionException {
 		System.out.println("C - Got Greeting response... requesting file existance");
 		
 		pw.write(ConnectionSettings.FILE_EXISTS_REQUEST + " " + serverFilePath + " " + owner + "\n");
@@ -657,12 +660,15 @@ public class ClientConnection implements RequestInterface {
 					" to the internet and then try your file existance request again");
 		}
         
+		boolean fileExists = false;
+		
         if(ConnectionSettings.FILE_EXISTS_YES.equals(line)) {
         	System.out.println("The file exists");
+        	fileExists = true;
         }
         else if(ConnectionSettings.FILE_EXISTS_NO.equals(line)) {
         	System.err.println("The file does not exist");
-        	throw new RequestExecutionException("The file you are looking for does not exist.");
+        	fileExists = false;
         }
         else if(ConnectionSettings.FILE_EXISTS_REJECT.equals(line)) {
         	System.err.println("The file exists request was rejected");
@@ -670,6 +676,7 @@ public class ClientConnection implements RequestInterface {
         			" and then try your request again.");
         }
         
+        return fileExists;
 	}
 	
 	private void permissionsChange(String serverFilePath, boolean newPermissions) throws DisconnectionException, RequestExecutionException {

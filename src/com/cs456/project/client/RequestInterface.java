@@ -27,7 +27,7 @@ public interface RequestInterface {
 	public void requestPasswordChange(String oldPassword, String newPassword) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 	
-	public void requestFileExistance(String serverFilePath, String owner) 
+	public boolean requestFileExistance(String serverFilePath, String owner) 
 			throws AuthenticationException, RequestPermissionsException, RequestExecutionException, DisconnectionException;
 	
 	public void requestPermissionsChange(String serverFilePath, boolean newPermissions) 
