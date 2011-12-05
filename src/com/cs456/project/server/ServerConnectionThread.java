@@ -1189,16 +1189,9 @@ public class ServerConnectionThread extends Thread {
 	}
 	
 	private void closeClientConnection() {
-		try {
-			if(socket != null) {
-				String line = readLine(socket);
-				if(line == null || !ConnectionSettings.GOODBYE.equals(line)) {
-					logger.info("The client did not send the goodbye message as expect.  Rather they sent: " + line);
-				}
-				
-				logger.info("Closing the client socket");
-				socket.close();
-			}
+		try {		
+			logger.info("Closing the client socket");
+			if(socket != null) socket.close();
 			
 		} catch (IOException e) {
 			logger.info("An error occurred while closing the client socket", e);
