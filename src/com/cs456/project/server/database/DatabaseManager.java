@@ -151,7 +151,8 @@ public class DatabaseManager {
 		Set<FileListObject> fileList = new HashSet<FileListObject>();
 		
 		while(rs.next()) {
-			fileList.add(new FileListObject(rs.getString("file_path"), rootPath));
+			boolean isMine = rs.getString("owner").toUpperCase().equals(owner.toUpperCase());
+			fileList.add(new FileListObject(rs.getString("file_path"), rootPath, isMine));
 		}
 
 		return fileList;
