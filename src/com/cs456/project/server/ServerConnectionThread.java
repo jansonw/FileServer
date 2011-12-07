@@ -724,7 +724,7 @@ public class ServerConnectionThread extends Thread {
 			return false;
 		}
 		
-		if(destinationPart.exists() && destinationPart.lastModified() != request.getLastModified()) {
+		if(destinationPart.exists() && destinationPart.lastModified() < request.getLastModified()) {
 			logger.info("Unable to upload the file: " + request.getNameOnServer() + " as the last modified date of the .part " +
 					"file on the server does not match that of the clients.");
 			

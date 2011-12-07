@@ -324,10 +324,12 @@ public class ClientConnection implements RequestInterface {
 		System.out.println("C - Closing Connection");
 			
 		try {
-			pw.write(ConnectionSettings.GOODBYE + "\n");
-			pw.flush();
-			
-			if(mySocket != null) mySocket.close();
+			if(mySocket != null) {
+				pw.write(ConnectionSettings.GOODBYE + "\n");
+				pw.flush();
+
+				mySocket.close();
+			}
 		} catch (IOException e) {
 			System.err.println("An error occurred while trying to close the socket");
 			e.printStackTrace();
@@ -374,6 +376,8 @@ public class ClientConnection implements RequestInterface {
 		pw.write(ConnectionSettings.DOWNLOAD_REQUEST + " " + serverFilename + " " +  owner + "\n");
 		pw.flush();
 		
+		FileOutputStream fileOut = null;
+		
 		try {
 			String line = readLine(mySocket);
 			
@@ -403,11 +407,7 @@ public class ClientConnection implements RequestInterface {
 	        	throw new OutOfDateException("The .part file of the file you are requesting to download is older than the file on the server. " +
 	        			"Please delete your .part file and then try your download request again.");
 	        }
-	        else if(destinationPart.exists() && lastModified < destinationPart.lastModified()) {
-	        	throw new OutOfDateException("The .part file of the file you are requesting to download is newer than the file on the server. " +
-	        			"Please delete your .part file and then try your download request again.");	        	
-	        }
-	        
+	        	        
 	        long partFileLength = destinationPart.exists() ? destinationPart.length() : 0;
 	        
 	        pw.write(ConnectionSettings.DOWNLOAD_OK + " " + partFileLength + "\n");
@@ -428,7 +428,7 @@ public class ClientConnection implements RequestInterface {
 						" Please contact customer support regarding this issue and then try your download request again.");
 			}			
 				
-			FileOutputStream fileOut;
+			
 			try {
 				fileOut = new FileOutputStream(destinationPart, partFileLength!=0);
 			} catch (FileNotFoundException e) {
@@ -464,6 +464,10 @@ public class ClientConnection implements RequestInterface {
 			
 			fileOut.close();
 		} catch(IOException e) {
+			try {
+				fileOut.close();
+			} catch (IOException e1) {
+			}
 			throw new DisconnectionException("Your connection with the server has been interrupted. Please reestablish your connection" +
 					" to the internet and then try your download request again.  If the download had begun, it will resume where it left off");
 		}
