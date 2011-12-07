@@ -3,24 +3,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="150px"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/linearLayout1"
-        android:layout_alignParentBottom="true"
-        android:layout_alignRight="@+id/linearLayout1"
-        android:layout_marginBottom="178dp"
-        android:onClick="onChangePassword"
-        android:text="@string/changePass" />
-
     <LinearLayout
         android:id="@+id/linearLayout1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/button2"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="35dp"
+        android:layout_centerVertical="true"
         android:orientation="vertical" >
 
         <TextView
@@ -35,19 +23,29 @@
             android:layout_width="240dp"
             android:layout_height="wrap_content"
             android:editable="false"
-            android:singleLine="true" >
-
-            <requestFocus />
-        </EditText>
+            android:singleLine="true" />
     </LinearLayout>
-
+
     <TextView
         android:id="@+id/textView1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@+id/linearLayout1"
         android:layout_centerHorizontal="true"
+        android:layout_marginBottom="36dp"
         android:text="@string/details"
-        android:textAppearance="?android:attr/textAppearanceLarge" />
+        android:textSize="30dp" />
+
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="150px"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/textView1"
+        android:layout_alignRight="@+id/textView1"
+        android:layout_below="@+id/linearLayout1"
+        android:layout_marginTop="34dp"
+        android:onClick="onChangePassword"
+        android:text="@string/changePass"
+        android:textSize="20dp" />
 
 </RelativeLayout>

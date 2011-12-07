@@ -10,16 +10,17 @@
         android:layout_height="wrap_content"
         android:text="Settings file:"
         android:textAppearance="?android:attr/textAppearanceLarge" />
-
+
     <EditText
         android:id="@+id/share_file"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:editable="false"
         android:inputType="none"
         android:text="Some val" />
 
     <CheckBox
-        android:id="@+id/share_dialog"
+        android:id="@+id/share_chkbox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Share publicly?" />
