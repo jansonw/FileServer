@@ -388,7 +388,6 @@ public class ServerActivity extends ListActivity {
 				String msg = "";
 				boolean result = false;
 				try {
-				    // How does this work?
 				    cc.getCC().requestFileDownload(
 					    dlLoc.getText().toString(),
 					    parseOutUserName(flo),
@@ -434,6 +433,14 @@ public class ServerActivity extends ListActivity {
 				options.dismiss();
 			    }
 			}).start();
+			
+			handle.post(new ParamRunnable(flo) {
+			    
+			    @Override
+			    public void run() {
+				Toast.makeText(This, "Downloading "+parseFileString(flo)+" file.", 3).show();				
+			    }
+			});
 		    }
 		});
 
